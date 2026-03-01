@@ -97,14 +97,41 @@ func TestExtractLinks(t *testing.T) {
 		}
 	})
 
-	t.Run("bare URL in code span strips backtick", func(t *testing.T) {
-		body := "`curl https://example.com/docs`"
+	t.Run("bare URL in code span is ignored", func(t *testing.T) {
+		body := "`curl https://example.com/docs` and https://example.com/real"
 		links := ExtractLinks(body)
 		if len(links) != 1 {
 			t.Fatalf("expected 1 link, got %d: %v", len(links), links)
 		}
-		if links[0] != "https://example.com/docs" {
-			t.Errorf("links[0] = %q, want %q", links[0], "https://example.com/docs")
+		if links[0] != "https://example.com/real" {
+			t.Errorf("links[0] = %q, want %q", links[0], "https://example.com/real")
+		}
+	})
+
+	t.Run("URL in fenced code block is ignored", func(t *testing.T) {
+		body := "```bash\ncurl https://example.com/api\n```"
+		links := ExtractLinks(body)
+		if len(links) != 0 {
+			t.Fatalf("expected 0 links, got %d: %v", len(links), links)
+		}
+	})
+
+	t.Run("URL in tilde-fenced code block is ignored", func(t *testing.T) {
+		body := "~~~bash\ncurl https://example.com/api\n~~~"
+		links := ExtractLinks(body)
+		if len(links) != 0 {
+			t.Fatalf("expected 0 links, got %d: %v", len(links), links)
+		}
+	})
+
+	t.Run("URL outside code block still extracted", func(t *testing.T) {
+		body := "```bash\ncurl https://example.com/api\n```\nVisit https://example.com/real for details."
+		links := ExtractLinks(body)
+		if len(links) != 1 {
+			t.Fatalf("expected 1 link, got %d: %v", len(links), links)
+		}
+		if links[0] != "https://example.com/real" {
+			t.Errorf("links[0] = %q, want %q", links[0], "https://example.com/real")
 		}
 	})
 

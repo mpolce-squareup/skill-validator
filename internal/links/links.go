@@ -16,6 +16,9 @@ var (
 	mdLinkPattern = regexp.MustCompile(`\[([^\]]*)\]\(([^)]+)\)`)
 	// Match bare URLs
 	bareURLPattern = regexp.MustCompile("(?:^|\\s)(https?://[^\\s<>\\)`]+)")
+	// Strip fenced code blocks and inline code spans before link extraction
+	codeBlockStrip  = regexp.MustCompile("(?s)(?:```|~~~)[\\w]*\\n.*?(?:```|~~~)")
+	inlineCodeStrip = regexp.MustCompile("`[^`]+`")
 )
 
 type linkResult struct {
@@ -79,8 +82,12 @@ func ExtractLinks(body string) []string {
 	seen := make(map[string]bool)
 	var links []string
 
+	// Strip code fences and inline code spans so URLs in code are not extracted.
+	cleaned := codeBlockStrip.ReplaceAllString(body, "")
+	cleaned = inlineCodeStrip.ReplaceAllString(cleaned, "")
+
 	// Markdown links
-	for _, match := range mdLinkPattern.FindAllStringSubmatch(body, -1) {
+	for _, match := range mdLinkPattern.FindAllStringSubmatch(cleaned, -1) {
 		url := strings.TrimSpace(match[2])
 		if !seen[url] {
 			seen[url] = true
@@ -89,7 +96,7 @@ func ExtractLinks(body string) []string {
 	}
 
 	// Bare URLs
-	for _, match := range bareURLPattern.FindAllStringSubmatch(body, -1) {
+	for _, match := range bareURLPattern.FindAllStringSubmatch(cleaned, -1) {
 		url := trimTrailingDelimiters(strings.TrimSpace(match[1]))
 		if !seen[url] {
 			seen[url] = true
