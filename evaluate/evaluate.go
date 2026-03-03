@@ -17,6 +17,7 @@ import (
 	"github.com/dacharyc/skill-validator/judge"
 	"github.com/dacharyc/skill-validator/skill"
 	"github.com/dacharyc/skill-validator/skillcheck"
+	"github.com/dacharyc/skill-validator/util"
 )
 
 // ProgressFunc receives progress events during evaluation.
@@ -68,7 +69,7 @@ func resolveCacheDir(opts Options, skillDir string) string {
 func EvaluateSkill(ctx context.Context, dir string, client judge.LLMClient, opts Options) (*Result, error) {
 	result := &Result{SkillDir: dir}
 	cacheDir := resolveCacheDir(opts, dir)
-	skillName := filepath.Base(dir)
+	skillName := util.SkillNameFromDir(dir)
 
 	// Load skill
 	s, err := skill.Load(dir)
@@ -212,7 +213,7 @@ func EvaluateSingleFile(ctx context.Context, absPath string, client judge.LLMCli
 	fileName := filepath.Base(absPath)
 	skillName := s.Frontmatter.Name
 	if skillName == "" {
-		skillName = filepath.Base(skillDir)
+		skillName = util.SkillNameFromDir(skillDir)
 	}
 
 	progress(opts, "scoring", fmt.Sprintf("%s (parent: %s)", fileName, skillName))

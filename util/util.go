@@ -6,6 +6,7 @@ package util
 import (
 	"fmt"
 	"math"
+	"path/filepath"
 	"sort"
 )
 
@@ -61,6 +62,13 @@ func YSuffix(n int) string {
 		return "y"
 	}
 	return "ies"
+}
+
+// --- Path helpers ---
+
+// SkillNameFromDir derives a skill name from a directory path.
+func SkillNameFromDir(dir string) string {
+	return filepath.Base(dir)
 }
 
 // --- Map helpers ---

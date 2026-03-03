@@ -7,8 +7,6 @@
 package orchestrate
 
 import (
-	"path/filepath"
-
 	"github.com/dacharyc/skill-validator/contamination"
 	"github.com/dacharyc/skill-validator/content"
 	"github.com/dacharyc/skill-validator/links"
@@ -16,6 +14,7 @@ import (
 	"github.com/dacharyc/skill-validator/skillcheck"
 	"github.com/dacharyc/skill-validator/structure"
 	"github.com/dacharyc/skill-validator/types"
+	"github.com/dacharyc/skill-validator/util"
 )
 
 // CheckGroup identifies a category of checks that can be enabled or disabled.
@@ -97,7 +96,7 @@ func RunAllChecks(dir string, opts Options) *types.Report {
 				cr := content.Analyze(rawContent)
 				codeLanguages = cr.CodeLanguages
 			}
-			skillName := filepath.Base(dir)
+			skillName := util.SkillNameFromDir(dir)
 			rpt.ContaminationReport = contamination.Analyze(skillName, rawContent, codeLanguages)
 		}
 
@@ -172,7 +171,7 @@ func RunContaminationAnalysis(dir string) *types.Report {
 
 	// Get code languages from content analysis
 	cr := content.Analyze(s.RawContent)
-	skillName := filepath.Base(dir)
+	skillName := util.SkillNameFromDir(dir)
 	rpt.ContaminationReport = contamination.Analyze(skillName, s.RawContent, cr.CodeLanguages)
 
 	rpt.Results = append(rpt.Results,

@@ -334,6 +334,37 @@ func TestEvaluateSingleFile_CacheRoundTrip(t *testing.T) {
 	}
 }
 
+func TestEvaluateSkill_RefCacheRoundTrip(t *testing.T) {
+	dir := makeSkillDir(t, map[string]string{"ref.md": "# Reference content"})
+	client := &mockLLMClient{responses: []string{skillJSON, refJSON}}
+
+	// First call — scores and caches both skill and ref
+	result1, err := EvaluateSkill(context.Background(), dir, client, Options{MaxLen: 8000})
+	if err != nil {
+		t.Fatalf("first call error = %v", err)
+	}
+	if len(result1.RefResults) != 1 {
+		t.Fatalf("expected 1 ref result, got %d", len(result1.RefResults))
+	}
+
+	// Second call — should use cache for both (empty client would fail if called)
+	client2 := &mockLLMClient{}
+	result2, err := EvaluateSkill(context.Background(), dir, client2, Options{MaxLen: 8000})
+	if err != nil {
+		t.Fatalf("cached call error = %v", err)
+	}
+	if client2.callIdx != 0 {
+		t.Errorf("expected 0 LLM calls (all cached), got %d", client2.callIdx)
+	}
+	if len(result2.RefResults) != 1 {
+		t.Fatalf("expected 1 cached ref result, got %d", len(result2.RefResults))
+	}
+	if result2.RefResults[0].Scores.Clarity != result1.RefResults[0].Scores.Clarity {
+		t.Errorf("cached ref clarity = %d, want %d",
+			result2.RefResults[0].Scores.Clarity, result1.RefResults[0].Scores.Clarity)
+	}
+}
+
 func TestEvaluateSkill_RefScoringError(t *testing.T) {
 	dir := makeSkillDir(t, map[string]string{"bad.md": "# Bad"})
 	client := &mockLLMClient{
@@ -366,5 +397,98 @@ func TestEvaluateSkill_RefScoringError(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("expected error progress event, got: %v", progressEvents)
+	}
+}
+
+func TestEvaluateSingleFile_ReadError(t *testing.T) {
+	// Path ends in .md but doesn't exist on disk
+	_, err := EvaluateSingleFile(context.Background(), "/nonexistent/path/file.md", &mockLLMClient{}, Options{})
+	if err == nil {
+		t.Fatal("expected error for unreadable file")
+	}
+	if !strings.Contains(err.Error(), "reading file") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestEvaluateSingleFile_BadParentSkill(t *testing.T) {
+	// Create a directory with an invalid SKILL.md (bad YAML) so FindParentSkillDir
+	// succeeds but skill.Load fails.
+	tmp := t.TempDir()
+	skillDir := filepath.Join(tmp, "bad-skill")
+	refsDir := filepath.Join(skillDir, "references")
+	if err := os.MkdirAll(refsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Invalid YAML frontmatter: tabs not allowed
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("---\n\t:\n---\n# Bad"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	refPath := filepath.Join(refsDir, "ref.md")
+	if err := os.WriteFile(refPath, []byte("# Ref"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := EvaluateSingleFile(context.Background(), refPath, &mockLLMClient{}, Options{})
+	if err == nil {
+		t.Fatal("expected error for bad parent skill")
+	}
+	if !strings.Contains(err.Error(), "loading parent skill") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestEvaluateSingleFile_EmptyFrontmatterName(t *testing.T) {
+	// Create a skill without a name in frontmatter — should fall back to dir name.
+	tmp := t.TempDir()
+	skillDir := filepath.Join(tmp, "unnamed-skill")
+	refsDir := filepath.Join(skillDir, "references")
+	if err := os.MkdirAll(refsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"),
+		[]byte("---\ndescription: no name field\n---\n# Test\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	refPath := filepath.Join(refsDir, "ref.md")
+	if err := os.WriteFile(refPath, []byte("# Ref content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var scoringDetail string
+	client := &mockLLMClient{responses: []string{refJSON}}
+	opts := Options{
+		MaxLen: 8000,
+		Progress: func(event, detail string) {
+			if event == "scoring" {
+				scoringDetail = detail
+			}
+		},
+	}
+
+	result, err := EvaluateSingleFile(context.Background(), refPath, client, opts)
+	if err != nil {
+		t.Fatalf("EvaluateSingleFile error = %v", err)
+	}
+	if len(result.RefResults) != 1 {
+		t.Fatalf("expected 1 ref result, got %d", len(result.RefResults))
+	}
+	// Progress should contain the directory-derived name "unnamed-skill"
+	if !strings.Contains(scoringDetail, "unnamed-skill") {
+		t.Errorf("expected progress to contain dir-derived name, got: %q", scoringDetail)
+	}
+}
+
+func TestEvaluateSingleFile_LLMError(t *testing.T) {
+	dir := makeSkillDir(t, map[string]string{"ref.md": "# Ref"})
+	refPath := filepath.Join(dir, "references", "ref.md")
+	client := &mockLLMClient{errors: []error{fmt.Errorf("LLM unavailable")}}
+
+	_, err := EvaluateSingleFile(context.Background(), refPath, client, Options{MaxLen: 8000})
+	if err == nil {
+		t.Fatal("expected error when LLM fails")
+	}
+	if !strings.Contains(err.Error(), "scoring ref.md") {
+		t.Errorf("unexpected error: %v", err)
 	}
 }

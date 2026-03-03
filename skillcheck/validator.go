@@ -12,6 +12,7 @@ import (
 	"github.com/dacharyc/skill-validator/contamination"
 	"github.com/dacharyc/skill-validator/content"
 	"github.com/dacharyc/skill-validator/types"
+	"github.com/dacharyc/skill-validator/util"
 )
 
 // DetectSkills determines whether dir is a single skill, a multi-skill
@@ -75,7 +76,7 @@ func ReadReferencesMarkdownFiles(dir string) map[string]string {
 
 	files := make(map[string]string)
 	for _, entry := range entries {
-		if entry.IsDir() {
+		if entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
 			continue
 		}
 		if !strings.HasSuffix(strings.ToLower(entry.Name()), ".md") {
@@ -118,7 +119,7 @@ func AnalyzeReferences(dir string, rpt *types.Report) {
 
 		fr := types.ReferenceFileReport{File: name}
 		fr.ContentReport = content.Analyze(fileContent)
-		skillName := filepath.Base(dir)
+		skillName := util.SkillNameFromDir(dir)
 		fr.ContaminationReport = contamination.Analyze(skillName, fileContent, fr.ContentReport.CodeLanguages)
 		rpt.ReferenceReports = append(rpt.ReferenceReports, fr)
 	}
@@ -126,6 +127,6 @@ func AnalyzeReferences(dir string, rpt *types.Report) {
 	// Aggregate analysis on concatenated content
 	concatenated := strings.Join(parts, "\n")
 	rpt.ReferencesContentReport = content.Analyze(concatenated)
-	skillName := filepath.Base(dir)
+	skillName := util.SkillNameFromDir(dir)
 	rpt.ReferencesContaminationReport = contamination.Analyze(skillName, concatenated, rpt.ReferencesContentReport.CodeLanguages)
 }

@@ -3,22 +3,11 @@ package links
 import (
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/dacharyc/skill-validator/types"
-)
-
-var (
-	// Match [text](url) markdown links
-	mdLinkPattern = regexp.MustCompile(`\[([^\]]*)\]\(([^)]+)\)`)
-	// Match bare URLs
-	bareURLPattern = regexp.MustCompile("(?:^|\\s)(https?://[^\\s<>\\)`]+)")
-	// Strip fenced code blocks and inline code spans before link extraction
-	codeBlockStrip  = regexp.MustCompile("(?s)(?:```|~~~)[\\w]*\\n.*?(?:```|~~~)")
-	inlineCodeStrip = regexp.MustCompile("`[^`]+`")
 )
 
 type linkResult struct {
@@ -75,78 +64,6 @@ func CheckLinks(dir, body string) []types.Result {
 	}
 
 	return results
-}
-
-// ExtractLinks extracts all unique links from a markdown body.
-func ExtractLinks(body string) []string {
-	seen := make(map[string]bool)
-	var links []string
-
-	// Strip code fences and inline code spans so URLs in code are not extracted.
-	cleaned := codeBlockStrip.ReplaceAllString(body, "")
-	cleaned = inlineCodeStrip.ReplaceAllString(cleaned, "")
-
-	// Markdown links
-	for _, match := range mdLinkPattern.FindAllStringSubmatch(cleaned, -1) {
-		url := strings.TrimSpace(match[2])
-		if !seen[url] {
-			seen[url] = true
-			links = append(links, url)
-		}
-	}
-
-	// Bare URLs
-	for _, match := range bareURLPattern.FindAllStringSubmatch(cleaned, -1) {
-		url := trimTrailingDelimiters(strings.TrimSpace(match[1]))
-		if !seen[url] {
-			seen[url] = true
-			links = append(links, url)
-		}
-	}
-
-	return links
-}
-
-var entitySuffix = regexp.MustCompile(`&[a-zA-Z0-9]+;$`)
-
-// trimTrailingDelimiters strips trailing punctuation and entity references
-// from bare URLs, following cmark-gfm's autolink delimiter rules.
-func trimTrailingDelimiters(url string) string {
-	for {
-		changed := false
-
-		// Strip trailing HTML entity references (e.g. &amp;)
-		if strings.HasSuffix(url, ";") {
-			if loc := entitySuffix.FindStringIndex(url); loc != nil {
-				url = url[:loc[0]]
-				changed = true
-				continue
-			}
-		}
-
-		// Strip unbalanced trailing closing parenthesis
-		if strings.HasSuffix(url, ")") {
-			open := strings.Count(url, "(")
-			close := strings.Count(url, ")")
-			if close > open {
-				url = url[:len(url)-1]
-				changed = true
-				continue
-			}
-		}
-
-		// Strip trailing punctuation
-		if len(url) > 0 && strings.ContainsRune("?!.,:*_~'\";<", rune(url[len(url)-1])) {
-			url = url[:len(url)-1]
-			changed = true
-			continue
-		}
-
-		if !changed {
-			break
-		}
-	}
-	return url
 }
 
 func checkHTTPLink(ctx types.ResultContext, url string) types.Result {
