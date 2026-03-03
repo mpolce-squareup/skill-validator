@@ -67,7 +67,7 @@ func reportCompareText(w io.Writer, results []*judge.CachedResult, skillDir stri
 		_, _ = fmt.Fprintf(w, "\n%s%s%s\n", ColorBold, file, ColorReset)
 
 		models := uniqueModels(entries)
-		isSkill := file == "SKILL.md"
+		modelScored := buildModelScored(entries)
 
 		_, _ = fmt.Fprintf(w, "  %-22s", "Dimension")
 		for _, m := range models {
@@ -76,51 +76,28 @@ func reportCompareText(w io.Writer, results []*judge.CachedResult, skillDir stri
 		_, _ = fmt.Fprintln(w)
 		_, _ = fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 22+16*len(models)))
 
-		if isSkill {
-			printCompareRow(w, "Clarity", entries, models, "clarity")
-			printCompareRow(w, "Actionability", entries, models, "actionability")
-			printCompareRow(w, "Token Efficiency", entries, models, "token_efficiency")
-			printCompareRow(w, "Scope Discipline", entries, models, "scope_discipline")
-			printCompareRow(w, "Directive Precision", entries, models, "directive_precision")
-			printCompareRow(w, "Novelty", entries, models, "novelty")
-			printCompareRow(w, "Overall", entries, models, "overall")
-		} else {
-			printCompareRow(w, "Clarity", entries, models, "clarity")
-			printCompareRow(w, "Instructional Value", entries, models, "instructional_value")
-			printCompareRow(w, "Token Efficiency", entries, models, "token_efficiency")
-			printCompareRow(w, "Novelty", entries, models, "novelty")
-			printCompareRow(w, "Skill Relevance", entries, models, "skill_relevance")
-			printCompareRow(w, "Overall", entries, models, "overall")
+		dims := dimensionLabels(entries)
+		for _, label := range dims {
+			printCompareRowScored(w, label, models, modelScored, false)
 		}
+		printCompareRowScored(w, "Overall", models, modelScored, true)
 	}
 	_, _ = fmt.Fprintln(w)
 }
 
-func printCompareRow(w io.Writer, label string, entries []*judge.CachedResult, models []string, key string) {
+func printCompareRowScored(w io.Writer, label string, models []string, modelScored map[string]judge.Scored, isOverall bool) {
 	_, _ = fmt.Fprintf(w, "  %-22s", label)
-
-	modelScores := buildModelScores(entries)
-
 	for _, m := range models {
-		scores := modelScores[m]
-		if scores == nil {
+		s := modelScored[m]
+		if s == nil {
 			_, _ = fmt.Fprintf(w, " %-15s", "-")
 			continue
 		}
-		val, ok := scores[key]
-		if !ok {
-			_, _ = fmt.Fprintf(w, " %-15s", "-")
-			continue
-		}
-		switch v := val.(type) {
-		case float64:
-			if key == "overall" {
-				_, _ = fmt.Fprintf(w, " %-15s", fmt.Sprintf("%.2f/5", v))
-			} else {
-				_, _ = fmt.Fprintf(w, " %-15s", fmt.Sprintf("%d/5", int(v)))
-			}
-		default:
-			_, _ = fmt.Fprintf(w, " %-15v", v)
+		if isOverall {
+			_, _ = fmt.Fprintf(w, " %-15s", fmt.Sprintf("%.2f/5", s.OverallScore()))
+		} else {
+			val := dimValueByLabel(s, label)
+			_, _ = fmt.Fprintf(w, " %-15s", fmt.Sprintf("%d/5", val))
 		}
 	}
 	_, _ = fmt.Fprintln(w)
@@ -135,7 +112,7 @@ func reportCompareMarkdown(w io.Writer, results []*judge.CachedResult, skillDir 
 	for _, file := range files {
 		entries := byFile[file]
 		models := uniqueModels(entries)
-		isSkill := file == "SKILL.md"
+		modelScored := buildModelScored(entries)
 
 		_, _ = fmt.Fprintf(w, "\n### %s\n\n", file)
 
@@ -149,49 +126,29 @@ func reportCompareMarkdown(w io.Writer, results []*judge.CachedResult, skillDir 
 		}
 		_, _ = fmt.Fprintf(w, "\n")
 
-		modelScores := buildModelScores(entries)
-
-		if isSkill {
-			printCompareRowMD(w, "Clarity", models, modelScores, "clarity")
-			printCompareRowMD(w, "Actionability", models, modelScores, "actionability")
-			printCompareRowMD(w, "Token Efficiency", models, modelScores, "token_efficiency")
-			printCompareRowMD(w, "Scope Discipline", models, modelScores, "scope_discipline")
-			printCompareRowMD(w, "Directive Precision", models, modelScores, "directive_precision")
-			printCompareRowMD(w, "Novelty", models, modelScores, "novelty")
-			printCompareRowMD(w, "**Overall**", models, modelScores, "overall")
-		} else {
-			printCompareRowMD(w, "Clarity", models, modelScores, "clarity")
-			printCompareRowMD(w, "Instructional Value", models, modelScores, "instructional_value")
-			printCompareRowMD(w, "Token Efficiency", models, modelScores, "token_efficiency")
-			printCompareRowMD(w, "Novelty", models, modelScores, "novelty")
-			printCompareRowMD(w, "Skill Relevance", models, modelScores, "skill_relevance")
-			printCompareRowMD(w, "**Overall**", models, modelScores, "overall")
+		dims := dimensionLabels(entries)
+		for _, label := range dims {
+			printCompareRowScoredMD(w, label, models, modelScored, false)
 		}
+		printCompareRowScoredMD(w, "**Overall**", models, modelScored, true)
 	}
 }
 
-func printCompareRowMD(w io.Writer, label string, models []string, modelScores map[string]map[string]any, key string) {
+func printCompareRowScoredMD(w io.Writer, label string, models []string, modelScored map[string]judge.Scored, isOverall bool) {
 	_, _ = fmt.Fprintf(w, "| %s |", label)
 	for _, m := range models {
-		scores := modelScores[m]
-		if scores == nil {
+		s := modelScored[m]
+		if s == nil {
 			_, _ = fmt.Fprintf(w, " - |")
 			continue
 		}
-		val, ok := scores[key]
-		if !ok {
-			_, _ = fmt.Fprintf(w, " - |")
-			continue
-		}
-		switch v := val.(type) {
-		case float64:
-			if key == "overall" {
-				_, _ = fmt.Fprintf(w, " **%.2f/5** |", v)
-			} else {
-				_, _ = fmt.Fprintf(w, " %d/5 |", int(v))
-			}
-		default:
-			_, _ = fmt.Fprintf(w, " %v |", v)
+		if isOverall {
+			_, _ = fmt.Fprintf(w, " **%.2f/5** |", s.OverallScore())
+		} else {
+			// Strip markdown bold markers for label lookup
+			lookupLabel := strings.TrimPrefix(strings.TrimSuffix(label, "**"), "**")
+			val := dimValueByLabel(s, lookupLabel)
+			_, _ = fmt.Fprintf(w, " %d/5 |", val)
 		}
 	}
 	_, _ = fmt.Fprintf(w, "\n")
@@ -219,18 +176,44 @@ func uniqueModels(entries []*judge.CachedResult) []string {
 	return models
 }
 
-func buildModelScores(entries []*judge.CachedResult) map[string]map[string]any {
-	modelScores := make(map[string]map[string]any)
+// buildModelScored deserializes each model's cached result into a Scored value.
+func buildModelScored(entries []*judge.CachedResult) map[string]judge.Scored {
+	m := make(map[string]judge.Scored)
 	for _, e := range entries {
-		if _, ok := modelScores[e.Model]; ok {
+		if _, ok := m[e.Model]; ok {
 			continue
 		}
-		var scores map[string]any
-		if err := json.Unmarshal(e.Scores, &scores); err == nil {
-			modelScores[e.Model] = scores
+		if s, err := judge.DeserializeScored(e); err == nil {
+			m[e.Model] = s
 		}
 	}
-	return modelScores
+	return m
+}
+
+// dimensionLabels returns the dimension display labels for a set of cached results.
+// Uses the first successfully deserialized entry.
+func dimensionLabels(entries []*judge.CachedResult) []string {
+	for _, e := range entries {
+		if s, err := judge.DeserializeScored(e); err == nil {
+			dims := s.DimensionScores()
+			labels := make([]string, len(dims))
+			for i, d := range dims {
+				labels[i] = d.Label
+			}
+			return labels
+		}
+	}
+	return nil
+}
+
+// dimValueByLabel finds a dimension value by its display label.
+func dimValueByLabel(s judge.Scored, label string) int {
+	for _, d := range s.DimensionScores() {
+		if d.Label == label {
+			return d.Value
+		}
+	}
+	return 0
 }
 
 // ReportDefault formats the most recent cached results per file.
@@ -260,7 +243,7 @@ func reportDefaultText(w io.Writer, latest map[string]*judge.CachedResult, skill
 	_, _ = fmt.Fprintf(w, "\n%sCached scores for: %s%s\n", ColorBold, skillDir, ColorReset)
 
 	if r, ok := latest["SKILL.md"]; ok {
-		printCachedSkillScores(w, r)
+		printCachedScoresText(w, r)
 		delete(latest, "SKILL.md")
 	}
 
@@ -271,72 +254,37 @@ func reportDefaultText(w io.Writer, latest map[string]*judge.CachedResult, skill
 	sort.Strings(refs)
 
 	for _, f := range refs {
-		printCachedRefScores(w, latest[f])
+		printCachedScoresText(w, latest[f])
 	}
 
 	_, _ = fmt.Fprintln(w)
 }
 
-func printCachedSkillScores(w io.Writer, r *judge.CachedResult) {
-	var scores judge.SkillScores
-	if err := json.Unmarshal(r.Scores, &scores); err != nil {
-		_, _ = fmt.Fprintf(w, "\n  Could not parse cached SKILL.md scores\n")
-		return
-	}
-
-	_, _ = fmt.Fprintf(w, "\n%sSKILL.md Scores%s  %s(model: %s, scored: %s)%s\n",
-		ColorBold, ColorReset,
-		ColorCyan, r.Model, r.ScoredAt.Local().Format("2006-01-02 15:04"), ColorReset)
-
-	printDimScore(w, "Clarity", scores.Clarity)
-	printDimScore(w, "Actionability", scores.Actionability)
-	printDimScore(w, "Token Efficiency", scores.TokenEfficiency)
-	printDimScore(w, "Scope Discipline", scores.ScopeDiscipline)
-	printDimScore(w, "Directive Precision", scores.DirectivePrecision)
-	printDimScore(w, "Novelty", scores.Novelty)
-	_, _ = fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 30))
-	_, _ = fmt.Fprintf(w, "  %sOverall:              %.2f/5%s\n", ColorBold, scores.Overall, ColorReset)
-
-	if scores.BriefAssessment != "" {
-		_, _ = fmt.Fprintf(w, "\n  %s\"%s\"%s\n", ColorCyan, scores.BriefAssessment, ColorReset)
-	}
-	if scores.NovelInfo != "" {
-		_, _ = fmt.Fprintf(w, "  %sNovel details: %s%s\n", ColorCyan, scores.NovelInfo, ColorReset)
-	}
-}
-
-func printCachedRefScores(w io.Writer, r *judge.CachedResult) {
-	var scores judge.RefScores
-	if err := json.Unmarshal(r.Scores, &scores); err != nil {
+func printCachedScoresText(w io.Writer, r *judge.CachedResult) {
+	scored, err := judge.DeserializeScored(r)
+	if err != nil {
 		_, _ = fmt.Fprintf(w, "\n  Could not parse cached scores for %s\n", r.File)
 		return
 	}
 
-	_, _ = fmt.Fprintf(w, "\n%sReference: %s%s  %s(model: %s, scored: %s)%s\n",
-		ColorBold, r.File, ColorReset,
-		ColorCyan, r.Model, r.ScoredAt.Local().Format("2006-01-02 15:04"), ColorReset)
-
-	printDimScore(w, "Clarity", scores.Clarity)
-	printDimScore(w, "Instructional Value", scores.InstructionalValue)
-	printDimScore(w, "Token Efficiency", scores.TokenEfficiency)
-	printDimScore(w, "Novelty", scores.Novelty)
-	printDimScore(w, "Skill Relevance", scores.SkillRelevance)
-	_, _ = fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 30))
-	_, _ = fmt.Fprintf(w, "  %sOverall:              %.2f/5%s\n", ColorBold, scores.Overall, ColorReset)
-
-	if scores.BriefAssessment != "" {
-		_, _ = fmt.Fprintf(w, "\n  %s\"%s\"%s\n", ColorCyan, scores.BriefAssessment, ColorReset)
+	if r.Type == "skill" || r.File == "SKILL.md" {
+		_, _ = fmt.Fprintf(w, "\n%sSKILL.md Scores%s  %s(model: %s, scored: %s)%s\n",
+			ColorBold, ColorReset,
+			ColorCyan, r.Model, r.ScoredAt.Local().Format("2006-01-02 15:04"), ColorReset)
+	} else {
+		_, _ = fmt.Fprintf(w, "\n%sReference: %s%s  %s(model: %s, scored: %s)%s\n",
+			ColorBold, r.File, ColorReset,
+			ColorCyan, r.Model, r.ScoredAt.Local().Format("2006-01-02 15:04"), ColorReset)
 	}
-	if scores.NovelInfo != "" {
-		_, _ = fmt.Fprintf(w, "  %sNovel details: %s%s\n", ColorCyan, scores.NovelInfo, ColorReset)
-	}
+
+	printScoredText(w, scored)
 }
 
 func reportDefaultMarkdown(w io.Writer, latest map[string]*judge.CachedResult, skillDir string) {
 	_, _ = fmt.Fprintf(w, "## Cached scores for: %s\n", skillDir)
 
 	if r, ok := latest["SKILL.md"]; ok {
-		printCachedSkillScoresMD(w, r)
+		printCachedScoresMarkdown(w, r)
 		delete(latest, "SKILL.md")
 	}
 
@@ -347,61 +295,24 @@ func reportDefaultMarkdown(w io.Writer, latest map[string]*judge.CachedResult, s
 	sort.Strings(refs)
 
 	for _, f := range refs {
-		printCachedRefScoresMD(w, latest[f])
+		printCachedScoresMarkdown(w, latest[f])
 	}
 }
 
-func printCachedSkillScoresMD(w io.Writer, r *judge.CachedResult) {
-	var scores judge.SkillScores
-	if err := json.Unmarshal(r.Scores, &scores); err != nil {
-		_, _ = fmt.Fprintf(w, "\nCould not parse cached SKILL.md scores\n")
-		return
-	}
-
-	_, _ = fmt.Fprintf(w, "\n### SKILL.md Scores\n\n")
-	_, _ = fmt.Fprintf(w, "*Model: %s, scored: %s*\n\n", r.Model, r.ScoredAt.Local().Format("2006-01-02 15:04"))
-	_, _ = fmt.Fprintf(w, "| Dimension | Score |\n")
-	_, _ = fmt.Fprintf(w, "| --- | ---: |\n")
-	_, _ = fmt.Fprintf(w, "| Clarity | %d/5 |\n", scores.Clarity)
-	_, _ = fmt.Fprintf(w, "| Actionability | %d/5 |\n", scores.Actionability)
-	_, _ = fmt.Fprintf(w, "| Token Efficiency | %d/5 |\n", scores.TokenEfficiency)
-	_, _ = fmt.Fprintf(w, "| Scope Discipline | %d/5 |\n", scores.ScopeDiscipline)
-	_, _ = fmt.Fprintf(w, "| Directive Precision | %d/5 |\n", scores.DirectivePrecision)
-	_, _ = fmt.Fprintf(w, "| Novelty | %d/5 |\n", scores.Novelty)
-	_, _ = fmt.Fprintf(w, "| **Overall** | **%.2f/5** |\n", scores.Overall)
-
-	if scores.BriefAssessment != "" {
-		_, _ = fmt.Fprintf(w, "\n> %s\n", scores.BriefAssessment)
-	}
-	if scores.NovelInfo != "" {
-		_, _ = fmt.Fprintf(w, "\n*Novel details: %s*\n", scores.NovelInfo)
-	}
-}
-
-func printCachedRefScoresMD(w io.Writer, r *judge.CachedResult) {
-	var scores judge.RefScores
-	if err := json.Unmarshal(r.Scores, &scores); err != nil {
+func printCachedScoresMarkdown(w io.Writer, r *judge.CachedResult) {
+	scored, err := judge.DeserializeScored(r)
+	if err != nil {
 		_, _ = fmt.Fprintf(w, "\nCould not parse cached scores for %s\n", r.File)
 		return
 	}
 
-	_, _ = fmt.Fprintf(w, "\n### Reference: %s\n\n", r.File)
+	if r.Type == "skill" || r.File == "SKILL.md" {
+		_, _ = fmt.Fprintf(w, "\n### SKILL.md Scores\n\n")
+	} else {
+		_, _ = fmt.Fprintf(w, "\n### Reference: %s\n\n", r.File)
+	}
 	_, _ = fmt.Fprintf(w, "*Model: %s, scored: %s*\n\n", r.Model, r.ScoredAt.Local().Format("2006-01-02 15:04"))
-	_, _ = fmt.Fprintf(w, "| Dimension | Score |\n")
-	_, _ = fmt.Fprintf(w, "| --- | ---: |\n")
-	_, _ = fmt.Fprintf(w, "| Clarity | %d/5 |\n", scores.Clarity)
-	_, _ = fmt.Fprintf(w, "| Instructional Value | %d/5 |\n", scores.InstructionalValue)
-	_, _ = fmt.Fprintf(w, "| Token Efficiency | %d/5 |\n", scores.TokenEfficiency)
-	_, _ = fmt.Fprintf(w, "| Novelty | %d/5 |\n", scores.Novelty)
-	_, _ = fmt.Fprintf(w, "| Skill Relevance | %d/5 |\n", scores.SkillRelevance)
-	_, _ = fmt.Fprintf(w, "| **Overall** | **%.2f/5** |\n", scores.Overall)
-
-	if scores.BriefAssessment != "" {
-		_, _ = fmt.Fprintf(w, "\n> %s\n", scores.BriefAssessment)
-	}
-	if scores.NovelInfo != "" {
-		_, _ = fmt.Fprintf(w, "\n*Novel details: %s*\n", scores.NovelInfo)
-	}
+	printScoredMarkdown(w, scored)
 }
 
 func truncateModel(model string) string {

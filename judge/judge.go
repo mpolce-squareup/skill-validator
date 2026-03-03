@@ -8,6 +8,21 @@ import (
 	"strings"
 )
 
+// DimensionScore holds a single scoring dimension's display name and value.
+type DimensionScore struct {
+	Label string // Display name, e.g., "Token Efficiency"
+	Value int    // Score value, typically 1-5
+}
+
+// Scored is the interface implemented by both SkillScores and RefScores.
+// It allows formatting code to iterate dimensions generically.
+type Scored interface {
+	DimensionScores() []DimensionScore
+	OverallScore() float64
+	Assessment() string
+	NovelDetails() string
+}
+
 // SkillScores holds the LLM judge scores for a SKILL.md file.
 type SkillScores struct {
 	Clarity            int     `json:"clarity"`
@@ -32,6 +47,47 @@ type RefScores struct {
 	BriefAssessment    string  `json:"brief_assessment"`
 	NovelInfo          string  `json:"novel_info,omitempty"`
 }
+
+// DimensionScores returns the ordered dimension scores for SKILL.md scoring.
+func (s *SkillScores) DimensionScores() []DimensionScore {
+	return []DimensionScore{
+		{"Clarity", s.Clarity},
+		{"Actionability", s.Actionability},
+		{"Token Efficiency", s.TokenEfficiency},
+		{"Scope Discipline", s.ScopeDiscipline},
+		{"Directive Precision", s.DirectivePrecision},
+		{"Novelty", s.Novelty},
+	}
+}
+
+// OverallScore returns the computed overall score.
+func (s *SkillScores) OverallScore() float64 { return s.Overall }
+
+// Assessment returns the brief assessment text.
+func (s *SkillScores) Assessment() string { return s.BriefAssessment }
+
+// NovelDetails returns novel information details, if any.
+func (s *SkillScores) NovelDetails() string { return s.NovelInfo }
+
+// DimensionScores returns the ordered dimension scores for reference file scoring.
+func (s *RefScores) DimensionScores() []DimensionScore {
+	return []DimensionScore{
+		{"Clarity", s.Clarity},
+		{"Instructional Value", s.InstructionalValue},
+		{"Token Efficiency", s.TokenEfficiency},
+		{"Novelty", s.Novelty},
+		{"Skill Relevance", s.SkillRelevance},
+	}
+}
+
+// OverallScore returns the computed overall score.
+func (s *RefScores) OverallScore() float64 { return s.Overall }
+
+// Assessment returns the brief assessment text.
+func (s *RefScores) Assessment() string { return s.BriefAssessment }
+
+// NovelDetails returns novel information details, if any.
+func (s *RefScores) NovelDetails() string { return s.NovelInfo }
 
 var (
 	skillDims = []string{"clarity", "actionability", "token_efficiency", "scope_discipline", "directive_precision", "novelty"}

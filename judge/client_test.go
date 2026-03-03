@@ -107,7 +107,7 @@ func TestMaxTokensStyleOverride(t *testing.T) {
 			}))
 			defer srv.Close()
 
-			client, err := NewClient("openai", "test-key", srv.URL, tt.model, tt.maxTokensStyle)
+			client, err := NewClient(ClientOptions{Provider: "openai", APIKey: "test-key", BaseURL: srv.URL, Model: tt.model, MaxTokensStyle: tt.maxTokensStyle})
 			if err != nil {
 				t.Fatalf("NewClient: %v", err)
 			}

@@ -79,7 +79,13 @@ func runScoreEvaluate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	client, err := judge.NewClient(evalProvider, apiKey, evalBaseURL, evalModel, evalMaxTokensStyle)
+	client, err := judge.NewClient(judge.ClientOptions{
+		Provider:       evalProvider,
+		APIKey:         apiKey,
+		BaseURL:        evalBaseURL,
+		Model:          evalModel,
+		MaxTokensStyle: evalMaxTokensStyle,
+	})
 	if err != nil {
 		return err
 	}

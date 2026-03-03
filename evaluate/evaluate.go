@@ -40,12 +40,22 @@ type EvalOptions struct {
 	SkillOnly bool
 	RefsOnly  bool
 	MaxLen    int
+	CacheDir  string // Override cache directory; defaults to judge.CacheDir(skillDir) when empty
+}
+
+// resolveCacheDir returns the configured cache directory, falling back to the
+// default .score_cache location inside skillDir.
+func resolveCacheDir(opts EvalOptions, skillDir string) string {
+	if opts.CacheDir != "" {
+		return opts.CacheDir
+	}
+	return judge.CacheDir(skillDir)
 }
 
 // EvaluateSkill scores a skill directory (SKILL.md and/or reference files).
 func EvaluateSkill(ctx context.Context, dir string, client judge.LLMClient, opts EvalOptions, w io.Writer) (*EvalResult, error) {
 	result := &EvalResult{SkillDir: dir}
-	cacheDir := judge.CacheDir(dir)
+	cacheDir := resolveCacheDir(opts, dir)
 	skillName := filepath.Base(dir)
 
 	// Load skill
@@ -195,7 +205,7 @@ func EvaluateSingleFile(ctx context.Context, absPath string, client judge.LLMCli
 
 	_, _ = fmt.Fprintf(w, "  Scoring %s (parent: %s)...\n", fileName, skillName)
 
-	cacheDir := judge.CacheDir(skillDir)
+	cacheDir := resolveCacheDir(opts, skillDir)
 	cacheKey := judge.CacheKey(client.Provider(), client.ModelName(), "ref:"+fileName, skillName, fileName)
 
 	if !opts.Rescore {

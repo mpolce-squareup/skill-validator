@@ -121,6 +121,25 @@ func FilterByModel(results []*CachedResult, model string) []*CachedResult {
 	return filtered
 }
 
+// DeserializeScored unmarshals a CachedResult's Scores into the appropriate
+// concrete type and returns it as a Scored interface. It uses the Type field
+// to determine whether the result is a skill or reference score, falling back
+// to checking File == "SKILL.md" for compatibility with older cache entries.
+func DeserializeScored(r *CachedResult) (Scored, error) {
+	if r.Type == "skill" || r.File == "SKILL.md" {
+		var s SkillScores
+		if err := json.Unmarshal(r.Scores, &s); err != nil {
+			return nil, fmt.Errorf("deserializing skill scores: %w", err)
+		}
+		return &s, nil
+	}
+	var s RefScores
+	if err := json.Unmarshal(r.Scores, &s); err != nil {
+		return nil, fmt.Errorf("deserializing ref scores: %w", err)
+	}
+	return &s, nil
+}
+
 // LatestByFile returns the most recent cached result for each unique file,
 // across all models. If model is non-empty, filters to that model first.
 func LatestByFile(results []*CachedResult) map[string]*CachedResult {

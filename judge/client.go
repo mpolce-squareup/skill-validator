@@ -20,35 +20,47 @@ type LLMClient interface {
 	ModelName() string
 }
 
-// NewClient creates an LLMClient for the given provider.
-// If model is empty, a default is chosen per provider.
-// For the openai provider, baseURL defaults to "https://api.openai.com/v1" if empty.
-func NewClient(provider, apiKey, baseURL, model, maxTokensStyle string) (LLMClient, error) {
-	if apiKey == "" {
+// ClientOptions holds configuration for creating an LLM client.
+type ClientOptions struct {
+	Provider       string // "anthropic" or "openai"
+	APIKey         string // Required
+	BaseURL        string // Optional; defaults per provider
+	Model          string // Optional; defaults per provider
+	MaxTokensStyle string // "auto", "max_tokens", or "max_completion_tokens"
+}
+
+// NewClient creates an LLMClient for the given options.
+// If Model is empty, a default is chosen per provider.
+// For the openai provider, BaseURL defaults to "https://api.openai.com/v1" if empty.
+func NewClient(opts ClientOptions) (LLMClient, error) {
+	if opts.APIKey == "" {
 		return nil, fmt.Errorf("API key is required")
 	}
 
-	switch strings.ToLower(provider) {
+	switch strings.ToLower(opts.Provider) {
 	case "anthropic":
+		model := opts.Model
 		if model == "" {
 			model = "claude-sonnet-4-5-20250929"
 		}
-		anthBaseURL := "https://api.anthropic.com"
-		if baseURL != "" {
-			anthBaseURL = strings.TrimRight(baseURL, "/")
+		baseURL := "https://api.anthropic.com"
+		if opts.BaseURL != "" {
+			baseURL = strings.TrimRight(opts.BaseURL, "/")
 		}
-		return &anthropicClient{apiKey: apiKey, model: model, baseURL: anthBaseURL}, nil
+		return &anthropicClient{apiKey: opts.APIKey, model: model, baseURL: baseURL}, nil
 	case "openai":
+		model := opts.Model
 		if model == "" {
 			model = "gpt-4o"
 		}
+		baseURL := opts.BaseURL
 		if baseURL == "" {
 			baseURL = "https://api.openai.com/v1"
 		}
 		baseURL = strings.TrimRight(baseURL, "/")
-		return &openaiClient{apiKey: apiKey, baseURL: baseURL, model: model, maxTokensStyle: maxTokensStyle}, nil
+		return &openaiClient{apiKey: opts.APIKey, baseURL: baseURL, model: model, maxTokensStyle: opts.MaxTokensStyle}, nil
 	default:
-		return nil, fmt.Errorf("unsupported provider %q (use \"anthropic\" or \"openai\")", provider)
+		return nil, fmt.Errorf("unsupported provider %q (use \"anthropic\" or \"openai\")", opts.Provider)
 	}
 }
 

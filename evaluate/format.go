@@ -65,57 +65,38 @@ func PrintText(w io.Writer, result *EvalResult, display string) {
 
 	if result.SkillScores != nil {
 		_, _ = fmt.Fprintf(w, "\n%sSKILL.md Scores%s\n", ColorBold, ColorReset)
-		printDimScore(w, "Clarity", result.SkillScores.Clarity)
-		printDimScore(w, "Actionability", result.SkillScores.Actionability)
-		printDimScore(w, "Token Efficiency", result.SkillScores.TokenEfficiency)
-		printDimScore(w, "Scope Discipline", result.SkillScores.ScopeDiscipline)
-		printDimScore(w, "Directive Precision", result.SkillScores.DirectivePrecision)
-		printDimScore(w, "Novelty", result.SkillScores.Novelty)
-		_, _ = fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 30))
-		_, _ = fmt.Fprintf(w, "  %sOverall:              %.2f/5%s\n", ColorBold, result.SkillScores.Overall, ColorReset)
-
-		if result.SkillScores.BriefAssessment != "" {
-			_, _ = fmt.Fprintf(w, "\n  %s\"%s\"%s\n", ColorCyan, result.SkillScores.BriefAssessment, ColorReset)
-		}
-
-		if result.SkillScores.NovelInfo != "" {
-			_, _ = fmt.Fprintf(w, "  %sNovel details: %s%s\n", ColorCyan, result.SkillScores.NovelInfo, ColorReset)
-		}
+		printScoredText(w, result.SkillScores)
 	}
 
 	if display == "files" && len(result.RefResults) > 0 {
 		for _, ref := range result.RefResults {
 			_, _ = fmt.Fprintf(w, "\n%sReference: %s%s\n", ColorBold, ref.File, ColorReset)
-			printDimScore(w, "Clarity", ref.Scores.Clarity)
-			printDimScore(w, "Instructional Value", ref.Scores.InstructionalValue)
-			printDimScore(w, "Token Efficiency", ref.Scores.TokenEfficiency)
-			printDimScore(w, "Novelty", ref.Scores.Novelty)
-			printDimScore(w, "Skill Relevance", ref.Scores.SkillRelevance)
-			_, _ = fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 30))
-			_, _ = fmt.Fprintf(w, "  %sOverall:              %.2f/5%s\n", ColorBold, ref.Scores.Overall, ColorReset)
-
-			if ref.Scores.BriefAssessment != "" {
-				_, _ = fmt.Fprintf(w, "\n  %s\"%s\"%s\n", ColorCyan, ref.Scores.BriefAssessment, ColorReset)
-			}
-
-			if ref.Scores.NovelInfo != "" {
-				_, _ = fmt.Fprintf(w, "  %sNovel details: %s%s\n", ColorCyan, ref.Scores.NovelInfo, ColorReset)
-			}
+			printScoredText(w, ref.Scores)
 		}
 	}
 
 	if result.RefAggregate != nil {
 		_, _ = fmt.Fprintf(w, "\n%sReference Scores (%d file%s)%s\n", ColorBold, len(result.RefResults), util.PluralS(len(result.RefResults)), ColorReset)
-		printDimScore(w, "Clarity", result.RefAggregate.Clarity)
-		printDimScore(w, "Instructional Value", result.RefAggregate.InstructionalValue)
-		printDimScore(w, "Token Efficiency", result.RefAggregate.TokenEfficiency)
-		printDimScore(w, "Novelty", result.RefAggregate.Novelty)
-		printDimScore(w, "Skill Relevance", result.RefAggregate.SkillRelevance)
-		_, _ = fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 30))
-		_, _ = fmt.Fprintf(w, "  %sOverall:              %.2f/5%s\n", ColorBold, result.RefAggregate.Overall, ColorReset)
+		printScoredText(w, result.RefAggregate)
 	}
 
 	_, _ = fmt.Fprintln(w)
+}
+
+// printScoredText writes all dimensions, overall, assessment, and novel details for a Scored value.
+func printScoredText(w io.Writer, s judge.Scored) {
+	for _, d := range s.DimensionScores() {
+		printDimScore(w, d.Label, d.Value)
+	}
+	_, _ = fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 30))
+	_, _ = fmt.Fprintf(w, "  %sOverall:              %.2f/5%s\n", ColorBold, s.OverallScore(), ColorReset)
+
+	if s.Assessment() != "" {
+		_, _ = fmt.Fprintf(w, "\n  %s\"%s\"%s\n", ColorCyan, s.Assessment(), ColorReset)
+	}
+	if s.NovelDetails() != "" {
+		_, _ = fmt.Fprintf(w, "  %sNovel details: %s%s\n", ColorCyan, s.NovelDetails(), ColorReset)
+	}
 }
 
 func printDimScore(w io.Writer, name string, score int) {
@@ -180,41 +161,19 @@ func PrintMarkdown(w io.Writer, result *EvalResult, display string) {
 
 	if result.SkillScores != nil {
 		_, _ = fmt.Fprintf(w, "\n### SKILL.md Scores\n\n")
-		_, _ = fmt.Fprintf(w, "| Dimension | Score |\n")
-		_, _ = fmt.Fprintf(w, "| --- | ---: |\n")
-		_, _ = fmt.Fprintf(w, "| Clarity | %d/5 |\n", result.SkillScores.Clarity)
-		_, _ = fmt.Fprintf(w, "| Actionability | %d/5 |\n", result.SkillScores.Actionability)
-		_, _ = fmt.Fprintf(w, "| Token Efficiency | %d/5 |\n", result.SkillScores.TokenEfficiency)
-		_, _ = fmt.Fprintf(w, "| Scope Discipline | %d/5 |\n", result.SkillScores.ScopeDiscipline)
-		_, _ = fmt.Fprintf(w, "| Directive Precision | %d/5 |\n", result.SkillScores.DirectivePrecision)
-		_, _ = fmt.Fprintf(w, "| Novelty | %d/5 |\n", result.SkillScores.Novelty)
-		_, _ = fmt.Fprintf(w, "| **Overall** | **%.2f/5** |\n", result.SkillScores.Overall)
-
-		if result.SkillScores.BriefAssessment != "" {
-			_, _ = fmt.Fprintf(w, "\n> %s\n", result.SkillScores.BriefAssessment)
-		}
-
-		if result.SkillScores.NovelInfo != "" {
-			_, _ = fmt.Fprintf(w, "\n*Novel details: %s*\n", result.SkillScores.NovelInfo)
-		}
+		printScoredMarkdown(w, result.SkillScores)
 	}
 
 	if display == "files" && len(result.RefResults) > 0 {
 		for _, ref := range result.RefResults {
-			printRefScoresMarkdown(w, ref.File, ref.Scores)
+			_, _ = fmt.Fprintf(w, "\n### Reference: %s\n\n", ref.File)
+			printScoredMarkdown(w, ref.Scores)
 		}
 	}
 
 	if result.RefAggregate != nil {
 		_, _ = fmt.Fprintf(w, "\n### Reference Scores (%d file%s)\n\n", len(result.RefResults), util.PluralS(len(result.RefResults)))
-		_, _ = fmt.Fprintf(w, "| Dimension | Score |\n")
-		_, _ = fmt.Fprintf(w, "| --- | ---: |\n")
-		_, _ = fmt.Fprintf(w, "| Clarity | %d/5 |\n", result.RefAggregate.Clarity)
-		_, _ = fmt.Fprintf(w, "| Instructional Value | %d/5 |\n", result.RefAggregate.InstructionalValue)
-		_, _ = fmt.Fprintf(w, "| Token Efficiency | %d/5 |\n", result.RefAggregate.TokenEfficiency)
-		_, _ = fmt.Fprintf(w, "| Novelty | %d/5 |\n", result.RefAggregate.Novelty)
-		_, _ = fmt.Fprintf(w, "| Skill Relevance | %d/5 |\n", result.RefAggregate.SkillRelevance)
-		_, _ = fmt.Fprintf(w, "| **Overall** | **%.2f/5** |\n", result.RefAggregate.Overall)
+		printScoredMarkdown(w, result.RefAggregate)
 	}
 }
 
@@ -228,22 +187,19 @@ func PrintMultiMarkdown(w io.Writer, results []*EvalResult, display string) {
 	}
 }
 
-func printRefScoresMarkdown(w io.Writer, file string, scores *judge.RefScores) {
-	_, _ = fmt.Fprintf(w, "\n### Reference: %s\n\n", file)
+// printScoredMarkdown writes a markdown table for all dimensions plus overall, assessment, and novel details.
+func printScoredMarkdown(w io.Writer, s judge.Scored) {
 	_, _ = fmt.Fprintf(w, "| Dimension | Score |\n")
 	_, _ = fmt.Fprintf(w, "| --- | ---: |\n")
-	_, _ = fmt.Fprintf(w, "| Clarity | %d/5 |\n", scores.Clarity)
-	_, _ = fmt.Fprintf(w, "| Instructional Value | %d/5 |\n", scores.InstructionalValue)
-	_, _ = fmt.Fprintf(w, "| Token Efficiency | %d/5 |\n", scores.TokenEfficiency)
-	_, _ = fmt.Fprintf(w, "| Novelty | %d/5 |\n", scores.Novelty)
-	_, _ = fmt.Fprintf(w, "| Skill Relevance | %d/5 |\n", scores.SkillRelevance)
-	_, _ = fmt.Fprintf(w, "| **Overall** | **%.2f/5** |\n", scores.Overall)
-
-	if scores.BriefAssessment != "" {
-		_, _ = fmt.Fprintf(w, "\n> %s\n", scores.BriefAssessment)
+	for _, d := range s.DimensionScores() {
+		_, _ = fmt.Fprintf(w, "| %s | %d/5 |\n", d.Label, d.Value)
 	}
+	_, _ = fmt.Fprintf(w, "| **Overall** | **%.2f/5** |\n", s.OverallScore())
 
-	if scores.NovelInfo != "" {
-		_, _ = fmt.Fprintf(w, "\n*Novel details: %s*\n", scores.NovelInfo)
+	if s.Assessment() != "" {
+		_, _ = fmt.Fprintf(w, "\n> %s\n", s.Assessment())
+	}
+	if s.NovelDetails() != "" {
+		_, _ = fmt.Fprintf(w, "\n*Novel details: %s*\n", s.NovelDetails())
 	}
 }

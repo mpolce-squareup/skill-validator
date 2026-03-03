@@ -307,7 +307,7 @@ func TestParseRefScores(t *testing.T) {
 // --- Client construction tests ---
 
 func TestNewClient_Anthropic(t *testing.T) {
-	c, err := NewClient("anthropic", "test-key", "", "", "auto")
+	c, err := NewClient(ClientOptions{Provider: "anthropic", APIKey: "test-key"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -320,7 +320,7 @@ func TestNewClient_Anthropic(t *testing.T) {
 }
 
 func TestNewClient_OpenAI(t *testing.T) {
-	c, err := NewClient("openai", "test-key", "", "", "auto")
+	c, err := NewClient(ClientOptions{Provider: "openai", APIKey: "test-key"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -333,7 +333,7 @@ func TestNewClient_OpenAI(t *testing.T) {
 }
 
 func TestNewClient_CustomModel(t *testing.T) {
-	c, err := NewClient("openai", "test-key", "http://localhost:11434/v1", "llama3", "auto")
+	c, err := NewClient(ClientOptions{Provider: "openai", APIKey: "test-key", BaseURL: "http://localhost:11434/v1", Model: "llama3"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -343,14 +343,14 @@ func TestNewClient_CustomModel(t *testing.T) {
 }
 
 func TestNewClient_NoKey(t *testing.T) {
-	_, err := NewClient("anthropic", "", "", "", "auto")
+	_, err := NewClient(ClientOptions{Provider: "anthropic"})
 	if err == nil {
 		t.Error("expected error for empty API key")
 	}
 }
 
 func TestNewClient_InvalidProvider(t *testing.T) {
-	_, err := NewClient("invalid", "key", "", "", "auto")
+	_, err := NewClient(ClientOptions{Provider: "invalid", APIKey: "key"})
 	if err == nil {
 		t.Error("expected error for invalid provider")
 	}
@@ -467,7 +467,7 @@ func TestAnthropicClient_Complete(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, err := NewClient("anthropic", "test-key", server.URL, "test-model", "auto")
+	client, err := NewClient(ClientOptions{Provider: "anthropic", APIKey: "test-key", BaseURL: server.URL, Model: "test-model"})
 	if err != nil {
 		t.Fatalf("NewClient failed: %v", err)
 	}
@@ -488,7 +488,7 @@ func TestAnthropicClient_APIError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := NewClient("anthropic", "key", server.URL, "model", "auto")
+	client, _ := NewClient(ClientOptions{Provider: "anthropic", APIKey: "key", BaseURL: server.URL, Model: "model"})
 	_, err := client.Complete(context.Background(), "sys", "user")
 	if err == nil {
 		t.Fatal("expected error for 400 response")
@@ -502,7 +502,7 @@ func TestAnthropicClient_EmptyContent(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := NewClient("anthropic", "key", server.URL, "model", "auto")
+	client, _ := NewClient(ClientOptions{Provider: "anthropic", APIKey: "key", BaseURL: server.URL, Model: "model"})
 	_, err := client.Complete(context.Background(), "sys", "user")
 	if err == nil {
 		t.Fatal("expected error for empty content")
@@ -516,7 +516,7 @@ func TestAnthropicClient_ErrorField(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := NewClient("anthropic", "key", server.URL, "model", "auto")
+	client, _ := NewClient(ClientOptions{Provider: "anthropic", APIKey: "key", BaseURL: server.URL, Model: "model"})
 	_, err := client.Complete(context.Background(), "sys", "user")
 	if err == nil {
 		t.Fatal("expected error for error field in response")
@@ -543,7 +543,7 @@ func TestOpenAIClient_Complete(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, err := NewClient("openai", "test-key", server.URL, "test-model", "auto")
+	client, err := NewClient(ClientOptions{Provider: "openai", APIKey: "test-key", BaseURL: server.URL, Model: "test-model"})
 	if err != nil {
 		t.Fatalf("NewClient failed: %v", err)
 	}
@@ -564,7 +564,7 @@ func TestOpenAIClient_APIError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := NewClient("openai", "bad-key", server.URL, "model", "auto")
+	client, _ := NewClient(ClientOptions{Provider: "openai", APIKey: "bad-key", BaseURL: server.URL, Model: "model"})
 	_, err := client.Complete(context.Background(), "sys", "user")
 	if err == nil {
 		t.Fatal("expected error for 401 response")
@@ -581,7 +581,7 @@ func TestOpenAIClient_EmptyChoices(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := NewClient("openai", "key", server.URL, "model", "auto")
+	client, _ := NewClient(ClientOptions{Provider: "openai", APIKey: "key", BaseURL: server.URL, Model: "model"})
 	_, err := client.Complete(context.Background(), "sys", "user")
 	if err == nil {
 		t.Fatal("expected error for empty choices")
@@ -596,7 +596,7 @@ func TestOpenAIClient_ErrorField(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := NewClient("openai", "key", server.URL, "model", "auto")
+	client, _ := NewClient(ClientOptions{Provider: "openai", APIKey: "key", BaseURL: server.URL, Model: "model"})
 	_, err := client.Complete(context.Background(), "sys", "user")
 	if err == nil {
 		t.Fatal("expected error for error field in response")
@@ -943,6 +943,117 @@ func TestRefDimensions(t *testing.T) {
 	dims := RefDimensions()
 	if len(dims) != 5 {
 		t.Errorf("expected 5 ref dimensions, got %d", len(dims))
+	}
+}
+
+// --- Scored interface tests ---
+
+func TestSkillScores_Scored(t *testing.T) {
+	s := &SkillScores{
+		Clarity: 4, Actionability: 5, TokenEfficiency: 3,
+		ScopeDiscipline: 4, DirectivePrecision: 4, Novelty: 2,
+		Overall: 3.67, BriefAssessment: "Solid.", NovelInfo: "Internal API.",
+	}
+
+	var scored Scored = s // verify interface satisfaction
+	dims := scored.DimensionScores()
+	if len(dims) != 6 {
+		t.Fatalf("expected 6 dimensions, got %d", len(dims))
+	}
+	if dims[0].Label != "Clarity" || dims[0].Value != 4 {
+		t.Errorf("dims[0] = %+v, want Clarity=4", dims[0])
+	}
+	if scored.OverallScore() != 3.67 {
+		t.Errorf("OverallScore = %v, want 3.67", scored.OverallScore())
+	}
+	if scored.Assessment() != "Solid." {
+		t.Errorf("Assessment = %q", scored.Assessment())
+	}
+	if scored.NovelDetails() != "Internal API." {
+		t.Errorf("NovelDetails = %q", scored.NovelDetails())
+	}
+}
+
+func TestRefScores_Scored(t *testing.T) {
+	s := &RefScores{
+		Clarity: 3, InstructionalValue: 4, TokenEfficiency: 3,
+		Novelty: 5, SkillRelevance: 4,
+		Overall: 3.80, BriefAssessment: "Good.", NovelInfo: "Proprietary.",
+	}
+
+	var scored Scored = s
+	dims := scored.DimensionScores()
+	if len(dims) != 5 {
+		t.Fatalf("expected 5 dimensions, got %d", len(dims))
+	}
+	if dims[1].Label != "Instructional Value" || dims[1].Value != 4 {
+		t.Errorf("dims[1] = %+v, want Instructional Value=4", dims[1])
+	}
+	if scored.OverallScore() != 3.80 {
+		t.Errorf("OverallScore = %v, want 3.80", scored.OverallScore())
+	}
+	if scored.Assessment() != "Good." {
+		t.Errorf("Assessment = %q, want %q", scored.Assessment(), "Good.")
+	}
+	if scored.NovelDetails() != "Proprietary." {
+		t.Errorf("NovelDetails = %q, want %q", scored.NovelDetails(), "Proprietary.")
+	}
+}
+
+func TestDeserializeScored_Skill(t *testing.T) {
+	scoresJSON, _ := json.Marshal(SkillScores{Clarity: 4, Novelty: 2, Overall: 3.0})
+	r := &CachedResult{Type: "skill", File: "SKILL.md", Scores: scoresJSON}
+	scored, err := DeserializeScored(r)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	dims := scored.DimensionScores()
+	if len(dims) != 6 {
+		t.Errorf("expected 6 dims, got %d", len(dims))
+	}
+	if dims[0].Value != 4 {
+		t.Errorf("clarity = %d, want 4", dims[0].Value)
+	}
+}
+
+func TestDeserializeScored_Ref(t *testing.T) {
+	scoresJSON, _ := json.Marshal(RefScores{Clarity: 3, InstructionalValue: 4})
+	r := &CachedResult{Type: "ref:file.md", File: "file.md", Scores: scoresJSON}
+	scored, err := DeserializeScored(r)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	dims := scored.DimensionScores()
+	if len(dims) != 5 {
+		t.Errorf("expected 5 dims, got %d", len(dims))
+	}
+}
+
+func TestDeserializeScored_InvalidJSON(t *testing.T) {
+	r := &CachedResult{Type: "skill", File: "SKILL.md", Scores: json.RawMessage(`{invalid`)}
+	_, err := DeserializeScored(r)
+	if err == nil {
+		t.Error("expected error for invalid JSON")
+	}
+
+	r2 := &CachedResult{Type: "ref:file.md", File: "file.md", Scores: json.RawMessage(`{invalid`)}
+	_, err = DeserializeScored(r2)
+	if err == nil {
+		t.Error("expected error for invalid ref JSON")
+	}
+}
+
+func TestDeserializeScored_FallbackToFileName(t *testing.T) {
+	scoresJSON, _ := json.Marshal(SkillScores{Clarity: 4})
+	r := &CachedResult{Type: "", File: "SKILL.md", Scores: scoresJSON}
+	scored, err := DeserializeScored(r)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	// Should detect as skill from File name even without Type
+	dims := scored.DimensionScores()
+	if len(dims) != 6 {
+		t.Errorf("expected 6 dims (skill), got %d", len(dims))
 	}
 }
 

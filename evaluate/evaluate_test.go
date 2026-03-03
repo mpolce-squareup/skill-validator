@@ -58,6 +58,23 @@ func TestFindParentSkillDir_NotFound(t *testing.T) {
 	}
 }
 
+func TestResolveCacheDir_Default(t *testing.T) {
+	opts := EvalOptions{}
+	got := resolveCacheDir(opts, "/tmp/skill")
+	want := judge.CacheDir("/tmp/skill")
+	if got != want {
+		t.Errorf("resolveCacheDir default = %q, want %q", got, want)
+	}
+}
+
+func TestResolveCacheDir_Override(t *testing.T) {
+	opts := EvalOptions{CacheDir: "/custom/cache"}
+	got := resolveCacheDir(opts, "/tmp/skill")
+	if got != "/custom/cache" {
+		t.Errorf("resolveCacheDir override = %q, want /custom/cache", got)
+	}
+}
+
 func TestPrintText(t *testing.T) {
 	result := &EvalResult{
 		SkillDir: "/tmp/my-skill",
