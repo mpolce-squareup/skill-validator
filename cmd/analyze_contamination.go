@@ -1,14 +1,9 @@
 package cmd
 
 import (
-	"path/filepath"
-
 	"github.com/spf13/cobra"
 
-	"github.com/dacharyc/skill-validator/contamination"
-	"github.com/dacharyc/skill-validator/content"
-	"github.com/dacharyc/skill-validator/skill"
-	"github.com/dacharyc/skill-validator/skillcheck"
+	"github.com/dacharyc/skill-validator/orchestrate"
 	"github.com/dacharyc/skill-validator/types"
 )
 
@@ -35,12 +30,12 @@ func runAnalyzeContamination(cmd *cobra.Command, args []string) error {
 
 	switch mode {
 	case types.SingleSkill:
-		r := runContaminationAnalysis(dirs[0])
+		r := orchestrate.RunContaminationAnalysis(dirs[0])
 		return outputReportWithPerFile(r, perFileContamination)
 	case types.MultiSkill:
 		mr := &types.MultiReport{}
 		for _, dir := range dirs {
-			r := runContaminationAnalysis(dir)
+			r := orchestrate.RunContaminationAnalysis(dir)
 			mr.Skills = append(mr.Skills, r)
 			mr.Errors += r.Errors
 			mr.Warnings += r.Warnings
@@ -48,28 +43,4 @@ func runAnalyzeContamination(cmd *cobra.Command, args []string) error {
 		return outputMultiReportWithPerFile(mr, perFileContamination)
 	}
 	return nil
-}
-
-func runContaminationAnalysis(dir string) *types.Report {
-	rpt := &types.Report{SkillDir: dir}
-
-	s, err := skill.Load(dir)
-	if err != nil {
-		rpt.Results = append(rpt.Results,
-			types.ResultContext{Category: "Contamination"}.Error(err.Error()))
-		rpt.Errors = 1
-		return rpt
-	}
-
-	// Get code languages from content analysis
-	cr := content.Analyze(s.RawContent)
-	skillName := filepath.Base(dir)
-	rpt.ContaminationReport = contamination.Analyze(skillName, s.RawContent, cr.CodeLanguages)
-
-	rpt.Results = append(rpt.Results,
-		types.ResultContext{Category: "Contamination"}.Pass("contamination analysis complete"))
-
-	skillcheck.AnalyzeReferences(dir, rpt)
-
-	return rpt
 }

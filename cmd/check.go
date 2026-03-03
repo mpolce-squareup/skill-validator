@@ -2,16 +2,11 @@ package cmd
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/dacharyc/skill-validator/contamination"
-	"github.com/dacharyc/skill-validator/content"
-	"github.com/dacharyc/skill-validator/links"
-	"github.com/dacharyc/skill-validator/skill"
-	"github.com/dacharyc/skill-validator/skillcheck"
+	"github.com/dacharyc/skill-validator/orchestrate"
 	"github.com/dacharyc/skill-validator/structure"
 	"github.com/dacharyc/skill-validator/types"
 )
@@ -42,11 +37,11 @@ func init() {
 	rootCmd.AddCommand(checkCmd)
 }
 
-var validGroups = map[string]bool{
-	"structure":     true,
-	"links":         true,
-	"content":       true,
-	"contamination": true,
+var validGroups = map[orchestrate.CheckGroup]bool{
+	orchestrate.GroupStructure:     true,
+	orchestrate.GroupLinks:         true,
+	orchestrate.GroupContent:       true,
+	orchestrate.GroupContamination: true,
 }
 
 func runCheck(cmd *cobra.Command, args []string) error {
@@ -64,17 +59,20 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	structOpts := structure.Options{SkipOrphans: checkSkipOrphans}
+	opts := orchestrate.Options{
+		Enabled:    enabled,
+		StructOpts: structure.Options{SkipOrphans: checkSkipOrphans},
+	}
 	eopts := exitOpts{strict: strictCheck}
 
 	switch mode {
 	case types.SingleSkill:
-		r := runAllChecks(dirs[0], enabled, structOpts)
+		r := orchestrate.RunAllChecks(dirs[0], opts)
 		return outputReportWithExitOpts(r, perFileCheck, eopts)
 	case types.MultiSkill:
 		mr := &types.MultiReport{}
 		for _, dir := range dirs {
-			r := runAllChecks(dir, enabled, structOpts)
+			r := orchestrate.RunAllChecks(dir, opts)
 			mr.Skills = append(mr.Skills, r)
 			mr.Errors += r.Errors
 			mr.Warnings += r.Warnings
@@ -84,13 +82,8 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func resolveCheckGroups(only, skip string) (map[string]bool, error) {
-	enabled := map[string]bool{
-		"structure":     true,
-		"links":         true,
-		"content":       true,
-		"contamination": true,
-	}
+func resolveCheckGroups(only, skip string) (map[orchestrate.CheckGroup]bool, error) {
+	enabled := orchestrate.AllGroups()
 
 	if only != "" {
 		// Reset all to false, enable only specified
@@ -99,112 +92,24 @@ func resolveCheckGroups(only, skip string) (map[string]bool, error) {
 		}
 		for g := range strings.SplitSeq(only, ",") {
 			g = strings.TrimSpace(g)
-			if !validGroups[g] {
+			cg := orchestrate.CheckGroup(g)
+			if !validGroups[cg] {
 				return nil, fmt.Errorf("unknown check group %q (valid: structure, links, content, contamination)", g)
 			}
-			enabled[g] = true
+			enabled[cg] = true
 		}
 	}
 
 	if skip != "" {
 		for g := range strings.SplitSeq(skip, ",") {
 			g = strings.TrimSpace(g)
-			if !validGroups[g] {
+			cg := orchestrate.CheckGroup(g)
+			if !validGroups[cg] {
 				return nil, fmt.Errorf("unknown check group %q (valid: structure, links, content, contamination)", g)
 			}
-			enabled[g] = false
+			enabled[cg] = false
 		}
 	}
 
 	return enabled, nil
-}
-
-func runAllChecks(dir string, enabled map[string]bool, structOpts structure.Options) *types.Report {
-	rpt := &types.Report{SkillDir: dir}
-
-	// Structure validation (spec compliance, tokens, code fences)
-	if enabled["structure"] {
-		vr := structure.Validate(dir, structOpts)
-		rpt.Results = append(rpt.Results, vr.Results...)
-		rpt.TokenCounts = vr.TokenCounts
-		rpt.OtherTokenCounts = vr.OtherTokenCounts
-	}
-
-	// Load skill for links/content/contamination checks
-	needsSkill := enabled["links"] || enabled["content"] || enabled["contamination"]
-	var rawContent, body string
-	var skillLoaded bool
-	if needsSkill {
-		s, err := skill.Load(dir)
-		if err != nil {
-			if !enabled["structure"] {
-				// Only add the error if structure didn't already catch it
-				rpt.Results = append(rpt.Results,
-					types.ResultContext{Category: "Skill"}.Error(err.Error()))
-			}
-			// Fall back to reading raw SKILL.md for content/contamination analysis
-			rawContent = skillcheck.ReadSkillRaw(dir)
-		} else {
-			rawContent = s.RawContent
-			body = s.Body
-			skillLoaded = true
-		}
-
-		// Link checks require a fully parsed skill
-		if skillLoaded && enabled["links"] {
-			rpt.Results = append(rpt.Results, links.CheckLinks(dir, body)...)
-		}
-
-		// Content analysis works on raw content (no frontmatter parsing needed)
-		if enabled["content"] && rawContent != "" {
-			cr := content.Analyze(rawContent)
-			rpt.ContentReport = cr
-		}
-
-		// Contamination analysis works on raw content
-		if enabled["contamination"] && rawContent != "" {
-			var codeLanguages []string
-			if rpt.ContentReport != nil {
-				codeLanguages = rpt.ContentReport.CodeLanguages
-			} else {
-				cr := content.Analyze(rawContent)
-				codeLanguages = cr.CodeLanguages
-			}
-			skillName := filepath.Base(dir)
-			rpt.ContaminationReport = contamination.Analyze(skillName, rawContent, codeLanguages)
-		}
-
-		// Reference file analysis (both content and contamination)
-		if enabled["content"] || enabled["contamination"] {
-			skillcheck.AnalyzeReferences(dir, rpt)
-			// If content is disabled, clear the content-specific reference fields
-			if !enabled["content"] {
-				rpt.ReferencesContentReport = nil
-				for i := range rpt.ReferenceReports {
-					rpt.ReferenceReports[i].ContentReport = nil
-				}
-			}
-			// If contamination is disabled, clear the contamination-specific reference fields
-			if !enabled["contamination"] {
-				rpt.ReferencesContaminationReport = nil
-				for i := range rpt.ReferenceReports {
-					rpt.ReferenceReports[i].ContaminationReport = nil
-				}
-			}
-		}
-	}
-
-	// Tally errors and warnings
-	rpt.Errors = 0
-	rpt.Warnings = 0
-	for _, r := range rpt.Results {
-		switch r.Level {
-		case types.Error:
-			rpt.Errors++
-		case types.Warning:
-			rpt.Warnings++
-		}
-	}
-
-	return rpt
 }
