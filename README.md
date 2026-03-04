@@ -23,9 +23,11 @@ Spec compliance is table stakes. `skill-validator` goes further: it checks that 
   - [check](#check)
   - [score evaluate](#score-evaluate)
   - [score report](#score-report)
+- [Output Formats](#output-formats)
   - [JSON output](#json-output)
   - [Markdown output](#markdown-output)
   - [GitHub Actions annotations](#github-actions-annotations)
+- [CI Integration](#ci-integration)
   - [CI workflow example](#ci-workflow-example)
   - [Multi-skill directories](#multi-skill-directories)
 - [What it checks & why](#what-it-checks)
@@ -95,13 +97,49 @@ The validation and scoring packages are importable for use in custom tooling, CI
 
 ```go
 import (
-    "github.com/dacharyc/skill-validator/skillcheck"
-    "github.com/dacharyc/skill-validator/structure"
+    "github.com/dacharyc/skill-validator/orchestrate"
     "github.com/dacharyc/skill-validator/judge"
+    "github.com/dacharyc/skill-validator/evaluate"
 )
 ```
 
-See the [package documentation](https://pkg.go.dev/github.com/dacharyc/skill-validator) for available APIs.
+API documentation and runnable examples are on [pkg.go.dev](https://pkg.go.dev/github.com/dacharyc/skill-validator).
+
+#### Custom LLM providers
+
+The built-in clients cover Anthropic and OpenAI-compatible APIs. For other providers, implement the `judge.LLMClient` interface:
+
+```go
+type LLMClient interface {
+    Complete(ctx context.Context, systemPrompt, userContent string) (string, error)
+    Provider() string
+    ModelName() string
+}
+```
+
+Your `Complete` method receives the scoring rubric as the system prompt and the skill/reference content as user content. Return the raw LLM response text; the judge package handles JSON parsing. `Provider()` and `ModelName()` are used for cache key generation, so they should return stable, unique values.
+
+For OpenAI-compatible providers (Azure OpenAI, etc.), you can use the built-in client with a custom base URL:
+
+```go
+client, err := judge.NewClient(judge.ClientOptions{
+    Provider: "openai",
+    APIKey:   os.Getenv("AZURE_OPENAI_API_KEY"),
+    BaseURL:  "https://your-resource.openai.azure.com/openai/deployments/your-deployment",
+    Model:    "gpt-4o",
+})
+```
+
+For providers that need different request formats (AWS Bedrock, Google Vertex AI, local models), implement `LLMClient` directly and pass it to the scoring functions:
+
+```go
+scores, err := judge.ScoreSkill(ctx, skillContent, myClient, judge.DefaultMaxContentLen)
+
+// Or use the evaluate package for full orchestration with caching
+result, err := evaluate.EvaluateSkill(ctx, "./my-skill", myClient, evaluate.Options{
+    MaxLen: judge.DefaultMaxContentLen,
+})
+```
 
 ## Command Usage
 
@@ -117,7 +155,7 @@ Commands map to skill development lifecycle stages:
 | Comparing models | [`score report`](#score-report) | How do scores compare across different LLM providers/models? |
 | Pre-publish | [`check`](#check) | Run everything (except LLM scoring) |
 
-All commands accept `-o text` (default), `-o json`, or `-o markdown` for output format. Use `--version` to print the installed version.
+Use `--version` to print the installed version.
 
 **Exit codes:**
 
@@ -352,6 +390,10 @@ Views and compares cached LLM scores without making API calls.
 
 The `--compare` flag is useful for understanding how different models perceive your skill's quality. For example, scoring with both Claude and GPT-4o can reveal whether novelty ratings are consistent across model families, or whether one model finds your instructions clearer than another.
 
+## Output Formats
+
+All commands accept `-o text` (default), `-o json`, or `-o markdown` for output format. Use `--emit-annotations` with any format to emit GitHub Actions workflow annotations alongside normal output.
+
 ### JSON output
 
 Use `-o json` for machine-readable output:
@@ -488,6 +530,8 @@ File paths are relative to the working directory (the repository root in CI). Re
 ```
 skill-validator check --emit-annotations --strict -o markdown my-skill/ >> $GITHUB_STEP_SUMMARY
 ```
+
+## CI Integration
 
 ### CI workflow example
 
