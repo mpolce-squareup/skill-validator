@@ -1,13 +1,10 @@
 package cmd
 
 import (
-	"path/filepath"
-
 	"github.com/spf13/cobra"
 
-	"github.com/dacharyc/skill-validator/internal/contamination"
-	"github.com/dacharyc/skill-validator/internal/content"
-	"github.com/dacharyc/skill-validator/internal/validator"
+	"github.com/dacharyc/skill-validator/orchestrate"
+	"github.com/dacharyc/skill-validator/types"
 )
 
 var perFileContamination bool
@@ -32,13 +29,13 @@ func runAnalyzeContamination(cmd *cobra.Command, args []string) error {
 	}
 
 	switch mode {
-	case validator.SingleSkill:
-		r := runContaminationAnalysis(dirs[0])
+	case types.SingleSkill:
+		r := orchestrate.RunContaminationAnalysis(dirs[0])
 		return outputReportWithPerFile(r, perFileContamination)
-	case validator.MultiSkill:
-		mr := &validator.MultiReport{}
+	case types.MultiSkill:
+		mr := &types.MultiReport{}
 		for _, dir := range dirs {
-			r := runContaminationAnalysis(dir)
+			r := orchestrate.RunContaminationAnalysis(dir)
 			mr.Skills = append(mr.Skills, r)
 			mr.Errors += r.Errors
 			mr.Warnings += r.Warnings
@@ -46,28 +43,4 @@ func runAnalyzeContamination(cmd *cobra.Command, args []string) error {
 		return outputMultiReportWithPerFile(mr, perFileContamination)
 	}
 	return nil
-}
-
-func runContaminationAnalysis(dir string) *validator.Report {
-	rpt := &validator.Report{SkillDir: dir}
-
-	s, err := validator.LoadSkill(dir)
-	if err != nil {
-		rpt.Results = append(rpt.Results,
-			validator.ResultContext{Category: "Contamination"}.Error(err.Error()))
-		rpt.Errors = 1
-		return rpt
-	}
-
-	// Get code languages from content analysis
-	cr := content.Analyze(s.RawContent)
-	skillName := filepath.Base(dir)
-	rpt.ContaminationReport = contamination.Analyze(skillName, s.RawContent, cr.CodeLanguages)
-
-	rpt.Results = append(rpt.Results,
-		validator.ResultContext{Category: "Contamination"}.Pass("contamination analysis complete"))
-
-	validator.AnalyzeReferences(dir, rpt)
-
-	return rpt
 }

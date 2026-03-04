@@ -7,10 +7,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dacharyc/skill-validator/internal/validator"
+	"github.com/dacharyc/skill-validator/skillcheck"
+	"github.com/dacharyc/skill-validator/types"
 )
 
-const version = "v0.8.1"
+const version = "v1.0.0"
 
 var (
 	outputFormat    string
@@ -21,6 +22,11 @@ var rootCmd = &cobra.Command{
 	Use:   "skill-validator",
 	Short: "Validate and analyze agent skills",
 	Long:  "A CLI for validating skill directory structure, analyzing content quality, and detecting cross-language contamination.",
+	// Once a command starts running (args parsed successfully), don't print
+	// usage on error — the error is operational, not a CLI mistake.
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		cmd.SilenceUsage = true
+	},
 }
 
 func init() {
@@ -31,7 +37,16 @@ func init() {
 
 // Execute runs the root command.
 func Execute() {
+	// We handle error printing ourselves so that exitCodeError (validation
+	// failures) doesn't produce cobra's default "Error: exit code N" noise.
+	rootCmd.SilenceErrors = true
 	if err := rootCmd.Execute(); err != nil {
+		if ec, ok := err.(exitCodeError); ok {
+			// Validation failure — report was already printed.
+			os.Exit(ec.code)
+		}
+		// CLI/usage error — print and exit.
+		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(ExitCobra)
 	}
 }
@@ -57,14 +72,14 @@ func resolvePath(args []string) (string, error) {
 }
 
 // detectAndResolve resolves the path and detects skills.
-func detectAndResolve(args []string) (string, validator.SkillMode, []string, error) {
+func detectAndResolve(args []string) (string, types.SkillMode, []string, error) {
 	absDir, err := resolvePath(args)
 	if err != nil {
 		return "", 0, nil, err
 	}
 
-	mode, dirs := validator.DetectSkills(absDir)
-	if mode == validator.NoSkill {
+	mode, dirs := skillcheck.DetectSkills(absDir)
+	if mode == types.NoSkill {
 		return "", 0, nil, fmt.Errorf("no skills found in %s (expected SKILL.md or subdirectories containing SKILL.md)", args[0])
 	}
 

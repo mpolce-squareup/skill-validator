@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dacharyc/skill-validator/internal/report"
-	"github.com/dacharyc/skill-validator/internal/validator"
+	"github.com/dacharyc/skill-validator/report"
+	"github.com/dacharyc/skill-validator/types"
 )
 
 var validateCmd = &cobra.Command{
@@ -20,15 +20,15 @@ func init() {
 	rootCmd.AddCommand(validateCmd)
 }
 
-func outputReport(r *validator.Report) error {
+func outputReport(r *types.Report) error {
 	return outputReportWithExitOpts(r, false, exitOpts{})
 }
 
-func outputReportWithPerFile(r *validator.Report, perFile bool) error {
+func outputReportWithPerFile(r *types.Report, perFile bool) error {
 	return outputReportWithExitOpts(r, perFile, exitOpts{})
 }
 
-func outputReportWithExitOpts(r *validator.Report, perFile bool, opts exitOpts) error {
+func outputReportWithExitOpts(r *types.Report, perFile bool, opts exitOpts) error {
 	switch outputFormat {
 	case "json":
 		if err := report.PrintJSON(os.Stdout, r, perFile); err != nil {
@@ -46,20 +46,20 @@ func outputReportWithExitOpts(r *validator.Report, perFile bool, opts exitOpts) 
 		report.PrintAnnotations(os.Stdout, r, wd)
 	}
 	if code := opts.resolve(r.Errors, r.Warnings); code != 0 {
-		os.Exit(code)
+		return exitCodeError{code: code}
 	}
 	return nil
 }
 
-func outputMultiReport(mr *validator.MultiReport) error {
+func outputMultiReport(mr *types.MultiReport) error {
 	return outputMultiReportWithExitOpts(mr, false, exitOpts{})
 }
 
-func outputMultiReportWithPerFile(mr *validator.MultiReport, perFile bool) error {
+func outputMultiReportWithPerFile(mr *types.MultiReport, perFile bool) error {
 	return outputMultiReportWithExitOpts(mr, perFile, exitOpts{})
 }
 
-func outputMultiReportWithExitOpts(mr *validator.MultiReport, perFile bool, opts exitOpts) error {
+func outputMultiReportWithExitOpts(mr *types.MultiReport, perFile bool, opts exitOpts) error {
 	switch outputFormat {
 	case "json":
 		if err := report.PrintMultiJSON(os.Stdout, mr, perFile); err != nil {
@@ -77,7 +77,7 @@ func outputMultiReportWithExitOpts(mr *validator.MultiReport, perFile bool, opts
 		report.PrintMultiAnnotations(os.Stdout, mr, wd)
 	}
 	if code := opts.resolve(mr.Errors, mr.Warnings); code != 0 {
-		os.Exit(code)
+		return exitCodeError{code: code}
 	}
 	return nil
 }

@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/spf13/cobra"
 
-	"github.com/dacharyc/skill-validator/internal/links"
-	"github.com/dacharyc/skill-validator/internal/validator"
+	"github.com/dacharyc/skill-validator/orchestrate"
+	"github.com/dacharyc/skill-validator/types"
 )
 
 var validateLinksCmd = &cobra.Command{
@@ -25,14 +27,16 @@ func runValidateLinks(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	ctx := context.Background()
+
 	switch mode {
-	case validator.SingleSkill:
-		r := runLinkChecks(dirs[0])
+	case types.SingleSkill:
+		r := orchestrate.RunLinkChecks(ctx, dirs[0])
 		return outputReport(r)
-	case validator.MultiSkill:
-		mr := &validator.MultiReport{}
+	case types.MultiSkill:
+		mr := &types.MultiReport{}
 		for _, dir := range dirs {
-			r := runLinkChecks(dir)
+			r := orchestrate.RunLinkChecks(ctx, dir)
 			mr.Skills = append(mr.Skills, r)
 			mr.Errors += r.Errors
 			mr.Warnings += r.Warnings
@@ -40,36 +44,4 @@ func runValidateLinks(cmd *cobra.Command, args []string) error {
 		return outputMultiReport(mr)
 	}
 	return nil
-}
-
-func runLinkChecks(dir string) *validator.Report {
-	rpt := &validator.Report{SkillDir: dir}
-
-	s, err := validator.LoadSkill(dir)
-	if err != nil {
-		rpt.Results = append(rpt.Results,
-			validator.ResultContext{Category: "Links"}.Error(err.Error()))
-		rpt.Errors = 1
-		return rpt
-	}
-
-	rpt.Results = append(rpt.Results, links.CheckLinks(dir, s.Body)...)
-
-	// Tally
-	for _, r := range rpt.Results {
-		switch r.Level {
-		case validator.Error:
-			rpt.Errors++
-		case validator.Warning:
-			rpt.Warnings++
-		}
-	}
-
-	// If no results at all, add a pass result
-	if len(rpt.Results) == 0 {
-		rpt.Results = append(rpt.Results,
-			validator.ResultContext{Category: "Links"}.Pass("all link checks passed"))
-	}
-
-	return rpt
 }

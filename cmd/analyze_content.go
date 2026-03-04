@@ -3,8 +3,8 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/dacharyc/skill-validator/internal/content"
-	"github.com/dacharyc/skill-validator/internal/validator"
+	"github.com/dacharyc/skill-validator/orchestrate"
+	"github.com/dacharyc/skill-validator/types"
 )
 
 var perFileContent bool
@@ -29,13 +29,13 @@ func runAnalyzeContent(cmd *cobra.Command, args []string) error {
 	}
 
 	switch mode {
-	case validator.SingleSkill:
-		r := runContentAnalysis(dirs[0])
+	case types.SingleSkill:
+		r := orchestrate.RunContentAnalysis(dirs[0])
 		return outputReportWithPerFile(r, perFileContent)
-	case validator.MultiSkill:
-		mr := &validator.MultiReport{}
+	case types.MultiSkill:
+		mr := &types.MultiReport{}
 		for _, dir := range dirs {
-			r := runContentAnalysis(dir)
+			r := orchestrate.RunContentAnalysis(dir)
 			mr.Skills = append(mr.Skills, r)
 			mr.Errors += r.Errors
 			mr.Warnings += r.Warnings
@@ -43,24 +43,4 @@ func runAnalyzeContent(cmd *cobra.Command, args []string) error {
 		return outputMultiReportWithPerFile(mr, perFileContent)
 	}
 	return nil
-}
-
-func runContentAnalysis(dir string) *validator.Report {
-	rpt := &validator.Report{SkillDir: dir}
-
-	s, err := validator.LoadSkill(dir)
-	if err != nil {
-		rpt.Results = append(rpt.Results,
-			validator.ResultContext{Category: "Content"}.Error(err.Error()))
-		rpt.Errors = 1
-		return rpt
-	}
-
-	rpt.ContentReport = content.Analyze(s.RawContent)
-	rpt.Results = append(rpt.Results,
-		validator.ResultContext{Category: "Content"}.Pass("content analysis complete"))
-
-	validator.AnalyzeReferences(dir, rpt)
-
-	return rpt
 }
