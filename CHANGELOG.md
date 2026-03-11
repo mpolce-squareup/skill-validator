@@ -5,7 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] — Unreleased
+## [1.2.1]
+
+### Fixed
+
+- Fix false positive in comma-separated keyword stuffing heuristic on
+  multi-sentence descriptions with inline enumeration lists ([#26]).
+  The heuristic now splits descriptions into sentences before checking,
+  so commas in separate sentences are no longer counted together.
+
+### Changed
+
+- Extract keyword stuffing thresholds into named constants for easier tuning.
+
+## [1.2.0]
+
+### Changed
+
+- Bump default OpenAI model to GPT 5.2.
+- Add CI and review-skill examples to `examples/`.
+
+## [1.1.0]
+
+### Changed
+
+- Increase model name truncation limit in eval compare report.
+
+## [1.0.0]
 
 First stable release. Includes the complete CLI and importable library packages.
 
@@ -37,3 +63,8 @@ First stable release. Includes the complete CLI and importable library packages.
 - `report` — output formatting (text, JSON, markdown, GitHub annotations)
 - `types` — shared data types (`Report`, `Result`, `Level`, etc.)
 - `judge.LLMClient` interface for custom LLM providers
+
+[1.2.1]: https://github.com/agent-ecosystem/skill-validator/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/agent-ecosystem/skill-validator/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/agent-ecosystem/skill-validator/compare/v1.0.0...v1.1.0
+[#26]: https://github.com/agent-ecosystem/skill-validator/issues/26
