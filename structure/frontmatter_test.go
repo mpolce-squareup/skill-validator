@@ -221,6 +221,129 @@ func TestCheckFrontmatter_KeywordStuffing(t *testing.T) {
 		results := CheckFrontmatter(s)
 		requireNoResultContaining(t, results, types.Warning, "comma-separated segments")
 	})
+
+	t.Run("multi-sentence prose with inline lists is fine (issue #26)", func(t *testing.T) {
+		desc := "Manages MongoDB Atlas Stream Processing (ASP) workflows. Handles workspace provisioning, data source/sink connections, processor lifecycle operations, debugging diagnostics, and tier sizing. Supports Kafka, Atlas clusters, S3, HTTPS, and Lambda integrations for streaming data workloads and event processing. NOT for general MongoDB queries or Atlas cluster management. Requires MongoDB MCP Server with Atlas API credentials."
+		s := makeSkill("/tmp/my-skill", "my-skill", desc)
+		results := CheckFrontmatter(s)
+		requireNoResultContaining(t, results, types.Warning, "keyword")
+		requireNoResultContaining(t, results, types.Warning, "comma-separated")
+	})
+
+	t.Run("prose followed by keyword dump still warns", func(t *testing.T) {
+		desc := "Manages MongoDB workflows. MongoDB, Atlas, Vector Search, embeddings, RAG, retrieval, indexing, HNSW"
+		s := makeSkill("/tmp/my-skill", "my-skill", desc)
+		results := CheckFrontmatter(s)
+		requireResultContaining(t, results, types.Warning, "comma-separated segments")
+	})
+
+	t.Run("description with abbreviations splits correctly", func(t *testing.T) {
+		desc := "Use for e.g. vector search and embedding workflows. Supports multiple backends, distributed indexing, and query optimization."
+		s := makeSkill("/tmp/my-skill", "my-skill", desc)
+		results := CheckFrontmatter(s)
+		requireNoResultContaining(t, results, types.Warning, "keyword")
+		requireNoResultContaining(t, results, types.Warning, "comma-separated")
+	})
+}
+
+func TestSplitSentences(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		{
+			name:     "empty string",
+			input:    "",
+			expected: nil,
+		},
+		{
+			name:     "single sentence",
+			input:    "Hello world.",
+			expected: []string{"Hello world."},
+		},
+		{
+			name:  "two sentences",
+			input: "Hello world. Goodbye world.",
+			expected: []string{
+				"Hello world.",
+				"Goodbye world.",
+			},
+		},
+		{
+			name:  "abbreviation e.g. not split",
+			input: "Use for e.g. vector search and embeddings. Next sentence here.",
+			expected: []string{
+				"Use for e.g. vector search and embeddings.",
+				"Next sentence here.",
+			},
+		},
+		{
+			name:  "abbreviation i.e. not split",
+			input: "Works with i.e. the primary backend. Supports caching.",
+			expected: []string{
+				"Works with i.e. the primary backend.",
+				"Supports caching.",
+			},
+		},
+		{
+			name:  "version number not split",
+			input: "Requires Node.js v18.0 or higher. Also supports Deno.",
+			expected: []string{
+				"Requires Node.js v18.0 or higher.",
+				"Also supports Deno.",
+			},
+		},
+		{
+			name:  "etc. is a sentence boundary",
+			input: "Handles auth, storage, etc. Supports caching.",
+			expected: []string{
+				"Handles auth, storage, etc.",
+				"Supports caching.",
+			},
+		},
+		{
+			name:     "no trailing period",
+			input:    "Hello world",
+			expected: []string{"Hello world"},
+		},
+		{
+			name:  "exclamation mark boundary",
+			input: "This is great! Use it now.",
+			expected: []string{
+				"This is great!",
+				"Use it now.",
+			},
+		},
+		{
+			name:  "question mark boundary",
+			input: "Need vector search? Try this skill.",
+			expected: []string{
+				"Need vector search?",
+				"Try this skill.",
+			},
+		},
+		{
+			name:     "no split when lowercase follows period",
+			input:    "Use for auth. works with all backends.",
+			expected: []string{"Use for auth. works with all backends."},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := splitSentences(tt.input)
+			if len(got) != len(tt.expected) {
+				t.Fatalf("splitSentences(%q) = %v (len %d), want %v (len %d)",
+					tt.input, got, len(got), tt.expected, len(tt.expected))
+			}
+			for i := range got {
+				if got[i] != tt.expected[i] {
+					t.Errorf("sentence[%d] = %q, want %q", i, got[i], tt.expected[i])
+				}
+			}
+		})
+	}
 }
 
 func TestCheckFrontmatter_Compatibility(t *testing.T) {
