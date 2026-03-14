@@ -429,7 +429,7 @@ func TestCountAssetFiles(t *testing.T) {
 		writeFile(t, dir, "SKILL.md", "content")
 		writeFile(t, dir, "guide.md", "A guide for the skill.")
 		writeFile(t, dir, "notes.txt", "Some notes.")
-		_, counts, otherCounts := CheckTokens(dir, "body", Options{AcceptFlatLayouts: true})
+		_, counts, otherCounts := CheckTokens(dir, "body", Options{AllowFlatLayouts: true})
 		// Root files should be in standard counts, not other counts
 		if len(otherCounts) != 0 {
 			t.Errorf("expected 0 other counts with flat layout, got %d", len(otherCounts))
@@ -460,7 +460,7 @@ func TestCountAssetFiles(t *testing.T) {
 		dir := t.TempDir()
 		writeFile(t, dir, "SKILL.md", "content")
 		writeFile(t, dir, "extras/file.md", "content in unknown dir")
-		_, _, otherCounts := CheckTokens(dir, "body", Options{AcceptFlatLayouts: true})
+		_, _, otherCounts := CheckTokens(dir, "body", Options{AllowFlatLayouts: true})
 		if len(otherCounts) != 1 {
 			t.Errorf("expected 1 other count for unknown dir, got %d", len(otherCounts))
 		}

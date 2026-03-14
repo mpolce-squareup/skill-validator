@@ -65,7 +65,7 @@ func CheckStructure(dir string, opts Options) []types.Result {
 			continue // skip hidden files/dirs
 		}
 		if !entry.IsDir() {
-			if name != "SKILL.md" && !opts.AcceptFlatLayouts {
+			if name != "SKILL.md" && !opts.AllowFlatLayouts {
 				results = append(results, extraneousFileResult(ctx, name))
 			}
 			continue

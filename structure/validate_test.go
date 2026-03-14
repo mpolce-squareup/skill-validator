@@ -119,7 +119,7 @@ func TestValidate(t *testing.T) {
 		dir := t.TempDir()
 		writeSkill(t, dir, "---\nname: "+dirName(dir)+"\ndescription: A flat skill\n---\n# Body\nSee guide.md for details.\n")
 		writeFile(t, dir, "guide.md", "Guide content.")
-		report := Validate(dir, Options{AcceptFlatLayouts: true})
+		report := Validate(dir, Options{AllowFlatLayouts: true})
 		if report.Errors != 0 {
 			t.Errorf("expected 0 errors, got %d", report.Errors)
 			for _, r := range report.Results {
@@ -146,7 +146,7 @@ func TestValidate(t *testing.T) {
 		dir := t.TempDir()
 		writeSkill(t, dir, "---\nname: "+dirName(dir)+"\ndescription: A flat skill\n---\n# Body\n")
 		writeFile(t, dir, "orphan.md", "Nobody references me.")
-		report := Validate(dir, Options{AcceptFlatLayouts: true})
+		report := Validate(dir, Options{AllowFlatLayouts: true})
 		requireResultContaining(t, report.Results, types.Warning, "potentially unreferenced file: orphan.md")
 	})
 
@@ -154,7 +154,7 @@ func TestValidate(t *testing.T) {
 		dir := t.TempDir()
 		writeSkill(t, dir, "---\nname: "+dirName(dir)+"\ndescription: desc\n---\n# Body\nSee big-ref.md.\n")
 		writeFile(t, dir, "big-ref.md", generateContent(30_000))
-		report := Validate(dir, Options{AcceptFlatLayouts: true})
+		report := Validate(dir, Options{AllowFlatLayouts: true})
 		requireNoResultContaining(t, report.Results, types.Error, "doesn't appear to be structured as a skill")
 	})
 

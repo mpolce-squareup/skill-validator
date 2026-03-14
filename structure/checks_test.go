@@ -187,22 +187,22 @@ func TestCheckStructure(t *testing.T) {
 		requireNoLevel(t, results, types.Warning)
 	})
 
-	t.Run("accept-flat-layouts suppresses root file warnings", func(t *testing.T) {
+	t.Run("allow-flat-layouts suppresses root file warnings", func(t *testing.T) {
 		dir := t.TempDir()
 		writeFile(t, dir, "SKILL.md", "content")
 		writeFile(t, dir, "README.md", "readme")
 		writeFile(t, dir, "notes.txt", "notes")
 		writeFile(t, dir, "AGENTS.md", "agent config")
-		results := CheckStructure(dir, Options{AcceptFlatLayouts: true})
+		results := CheckStructure(dir, Options{AllowFlatLayouts: true})
 		requireResult(t, results, types.Pass, "SKILL.md found")
 		requireNoLevel(t, results, types.Warning)
 	})
 
-	t.Run("accept-flat-layouts still warns on unknown directories", func(t *testing.T) {
+	t.Run("allow-flat-layouts still warns on unknown directories", func(t *testing.T) {
 		dir := t.TempDir()
 		writeFile(t, dir, "SKILL.md", "content")
 		writeFile(t, dir, "extras/file.md", "content")
-		results := CheckStructure(dir, Options{AcceptFlatLayouts: true})
+		results := CheckStructure(dir, Options{AllowFlatLayouts: true})
 		requireResultContaining(t, results, types.Warning, "unknown directory: extras/")
 	})
 }

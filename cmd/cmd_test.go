@@ -440,7 +440,7 @@ func TestValidateCommand_FlatSkill_WithoutFlag(t *testing.T) {
 	r := structure.Validate(dir, structure.Options{})
 	// Without the flag, root files should produce warnings
 	if r.Warnings == 0 {
-		t.Error("expected warnings for root-level files without --accept-flat-layouts")
+		t.Error("expected warnings for root-level files without --allow-flat-layouts")
 	}
 
 	// Should warn about each non-SKILL.md root file
@@ -453,19 +453,19 @@ func TestValidateCommand_FlatSkill_WithoutFlag(t *testing.T) {
 		}
 	}
 	if !hasExtraneousWarning {
-		t.Error("expected extraneous file warning without --accept-flat-layouts")
+		t.Error("expected extraneous file warning without --allow-flat-layouts")
 	}
 
 	// Root files should be counted as "other" tokens
 	if len(r.OtherTokenCounts) == 0 {
-		t.Error("expected root files in other token counts without --accept-flat-layouts")
+		t.Error("expected root files in other token counts without --allow-flat-layouts")
 	}
 }
 
 func TestValidateCommand_FlatSkill_WithFlag(t *testing.T) {
 	dir := fixtureDir(t, "flat-skill")
 
-	r := structure.Validate(dir, structure.Options{AcceptFlatLayouts: true})
+	r := structure.Validate(dir, structure.Options{AllowFlatLayouts: true})
 
 	// Should pass with no errors
 	if r.Errors != 0 {
@@ -490,13 +490,13 @@ func TestValidateCommand_FlatSkill_WithFlag(t *testing.T) {
 	// No extraneous file warnings
 	for _, res := range r.Results {
 		if res.Level == types.Warning && strings.Contains(res.Message, "unexpected file at root") {
-			t.Errorf("unexpected extraneous file warning with --accept-flat-layouts: %s", res.Message)
+			t.Errorf("unexpected extraneous file warning with --allow-flat-layouts: %s", res.Message)
 		}
 	}
 
 	// Root files should be in standard token counts, not other
 	if len(r.OtherTokenCounts) != 0 {
-		t.Errorf("expected 0 other token counts with --accept-flat-layouts, got %d", len(r.OtherTokenCounts))
+		t.Errorf("expected 0 other token counts with --allow-flat-layouts, got %d", len(r.OtherTokenCounts))
 		for _, c := range r.OtherTokenCounts {
 			t.Logf("  other: %s (%d tokens)", c.File, c.Tokens)
 		}
@@ -533,7 +533,7 @@ func TestValidateCommand_FlatSkill_OrphanDetection(t *testing.T) {
 	}
 	defer func() { _ = os.Remove(tmpFile) }()
 
-	r := structure.Validate(dir, structure.Options{AcceptFlatLayouts: true})
+	r := structure.Validate(dir, structure.Options{AllowFlatLayouts: true})
 
 	// Should detect the orphan
 	hasOrphanWarning := false

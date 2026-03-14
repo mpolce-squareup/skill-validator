@@ -97,9 +97,9 @@ func CheckTokens(dir, body string, opts Options) ([]types.Result, []types.TokenC
 		}
 	}
 
-	// When flat layouts are accepted, root-level text files are treated as
+	// When flat layouts are allowed, root-level text files are treated as
 	// standard content (like references/) rather than "other" files.
-	if opts.AcceptFlatLayouts {
+	if opts.AllowFlatLayouts {
 		rootCounts := countRootFiles(dir, enc)
 		for _, rc := range rootCounts {
 			counts = append(counts, rc)
@@ -265,7 +265,7 @@ func countOtherFiles(dir string, enc tokenizer.Codec, opts Options) []types.Toke
 			// Walk files in unknown directory
 			counts = append(counts, countFilesInDir(dir, name, enc)...)
 		} else {
-			if standardRootFiles[strings.ToLower(name)] || opts.AcceptFlatLayouts {
+			if standardRootFiles[strings.ToLower(name)] || opts.AllowFlatLayouts {
 				continue
 			}
 			if binaryExtensions[strings.ToLower(filepath.Ext(name))] {
@@ -317,7 +317,7 @@ func countFilesInDir(rootDir, dirName string, enc tokenizer.Codec) []types.Token
 }
 
 // countRootFiles counts tokens in non-SKILL.md text files at the skill root.
-// Used when flat layouts are accepted to treat these as standard content.
+// Used when flat layouts are allowed to treat these as standard content.
 func countRootFiles(dir string, enc tokenizer.Codec) []types.TokenCount {
 	var counts []types.TokenCount
 	entries, err := os.ReadDir(dir)
