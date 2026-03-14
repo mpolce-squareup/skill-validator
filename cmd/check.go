@@ -19,6 +19,7 @@ var (
 	checkSkipOrphans           bool
 	strictCheck                bool
 	checkAllowExtraFrontmatter bool
+	checkAcceptFlatLayouts     bool
 )
 
 var checkCmd = &cobra.Command{
@@ -38,6 +39,8 @@ func init() {
 	checkCmd.Flags().BoolVar(&strictCheck, "strict", false, "treat warnings as errors (exit 1 instead of 2)")
 	checkCmd.Flags().BoolVar(&checkAllowExtraFrontmatter, "allow-extra-frontmatter", false,
 		"suppress warnings for non-spec frontmatter fields")
+	checkCmd.Flags().BoolVar(&checkAcceptFlatLayouts, "accept-flat-layouts", false,
+		"accept files at the skill root without warnings and treat them as standard content for token counting")
 	rootCmd.AddCommand(checkCmd)
 }
 
@@ -68,6 +71,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		StructOpts: structure.Options{
 			SkipOrphans:           checkSkipOrphans,
 			AllowExtraFrontmatter: checkAllowExtraFrontmatter,
+			AcceptFlatLayouts:     checkAcceptFlatLayouts,
 		},
 	}
 	eopts := exitOpts{strict: strictCheck}
