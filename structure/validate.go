@@ -11,7 +11,8 @@ import (
 
 // Options configures which checks Validate runs.
 type Options struct {
-	SkipOrphans bool
+	SkipOrphans           bool
+	AllowExtraFrontmatter bool
 }
 
 // ValidateMulti validates each directory and returns an aggregated report.
@@ -57,7 +58,7 @@ func Validate(dir string, opts Options) *types.Report {
 	}
 
 	// Frontmatter checks
-	report.Results = append(report.Results, CheckFrontmatter(s)...)
+	report.Results = append(report.Results, CheckFrontmatter(s, opts)...)
 
 	// Token checks
 	tokenResults, tokenCounts, otherCounts := CheckTokens(dir, s.Body)

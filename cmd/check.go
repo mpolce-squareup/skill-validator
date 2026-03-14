@@ -13,11 +13,12 @@ import (
 )
 
 var (
-	checkOnly        string
-	checkSkip        string
-	perFileCheck     bool
-	checkSkipOrphans bool
-	strictCheck      bool
+	checkOnly                  string
+	checkSkip                  string
+	perFileCheck               bool
+	checkSkipOrphans           bool
+	strictCheck                bool
+	checkAllowExtraFrontmatter bool
 )
 
 var checkCmd = &cobra.Command{
@@ -35,6 +36,8 @@ func init() {
 	checkCmd.Flags().BoolVar(&checkSkipOrphans, "skip-orphans", false,
 		"skip orphan file detection (unreferenced files in scripts/, references/, assets/)")
 	checkCmd.Flags().BoolVar(&strictCheck, "strict", false, "treat warnings as errors (exit 1 instead of 2)")
+	checkCmd.Flags().BoolVar(&checkAllowExtraFrontmatter, "allow-extra-frontmatter", false,
+		"suppress warnings for non-spec frontmatter fields")
 	rootCmd.AddCommand(checkCmd)
 }
 
@@ -61,8 +64,11 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := orchestrate.Options{
-		Enabled:    enabled,
-		StructOpts: structure.Options{SkipOrphans: checkSkipOrphans},
+		Enabled: enabled,
+		StructOpts: structure.Options{
+			SkipOrphans:           checkSkipOrphans,
+			AllowExtraFrontmatter: checkAllowExtraFrontmatter,
+		},
 	}
 	eopts := exitOpts{strict: strictCheck}
 	ctx := context.Background()

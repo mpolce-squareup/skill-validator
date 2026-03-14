@@ -183,9 +183,10 @@ For more details about how the commands are implemented and what they provide, r
 skill-validator validate structure <path>
 skill-validator validate structure --skip-orphans <path>
 skill-validator validate structure --strict <path>
+skill-validator validate structure --allow-extra-frontmatter <path>
 ```
 
-Checks spec compliance: directory structure, frontmatter fields, token limits, skill ratio, code fence integrity, internal link validity, and orphan file detection. Use `--skip-orphans` to suppress warnings about unreferenced files in `scripts/`, `references/`, and `assets/`. Use `--strict` to treat warnings as errors (exit 1 instead of 2).
+Checks spec compliance: directory structure, frontmatter fields, token limits, skill ratio, code fence integrity, internal link validity, and orphan file detection. Use `--skip-orphans` to suppress warnings about unreferenced files in `scripts/`, `references/`, and `assets/`. Use `--strict` to treat warnings as errors (exit 1 instead of 2). Use `--allow-extra-frontmatter` to suppress warnings for frontmatter fields not defined in the spec (e.g. `user-invokable`). Standard frontmatter fields are still fully validated.
 
 ```
 Validating skill: my-skill/
@@ -280,9 +281,10 @@ skill-validator check --skip contamination <path>
 skill-validator check --per-file <path>
 skill-validator check --skip-orphans <path>
 skill-validator check --strict <path>
+skill-validator check --allow-extra-frontmatter <path>
 ```
 
-Runs all checks (structure + links + content + contamination). Use `--only` or `--skip` to select specific check groups. The flags are mutually exclusive. Use `--per-file` to see per-file reference analysis alongside the aggregate. Use `--skip-orphans` to suppress orphan file warnings in the structure check. Use `--strict` to treat warnings as errors (exit 1 instead of 2).
+Runs all checks (structure + links + content + contamination). Use `--only` or `--skip` to select specific check groups. The flags are mutually exclusive. Use `--per-file` to see per-file reference analysis alongside the aggregate. Use `--skip-orphans` to suppress orphan file warnings in the structure check. Use `--strict` to treat warnings as errors (exit 1 instead of 2). Use `--allow-extra-frontmatter` to suppress warnings for non-spec frontmatter fields.
 
 Valid check groups: `structure`, `links`, `content`, `contamination`.
 
