@@ -35,6 +35,8 @@ var knownExtraneousFiles = map[string]string{
 	"quick_reference.md":    "QUICK_REFERENCE.md",
 	"makefile":              "Makefile",
 	".gitignore":            ".gitignore",
+	"owners.yaml":           "OWNERS.yaml",
+	"owners":                "OWNERS",
 }
 
 // CheckStructure validates the directory layout of a skill package. It checks
