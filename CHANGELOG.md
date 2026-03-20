@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1]
+
+### Added
+
+- Add opt-in rate limiting for LLM API calls during evaluation via
+  `RateLimit` option ([#37]). Disabled by default (zero value).
+- Recognize `OWNERS.yaml` and `OWNERS` as known extraneous files so they
+  produce the more specific "not needed in a skill" warning ([#33]).
+
+### Changed
+
+- Deduplicate regex patterns into `util/regex.go`, fixing tilde-fence
+  stripping in content analysis ([#35]).
+- Cache token encoder with `sync.Once` to avoid repeated initialization
+  in batch runs ([#34]).
+
+### Fixed
+
+- Rate limiter now respects context cancellation instead of blocking
+  until the next tick interval.
+- First rate-limited LLM call no longer incurs an unnecessary delay.
+
 ## [1.3.0]
 
 ### Added
@@ -81,10 +103,15 @@ First stable release. Includes the complete CLI and importable library packages.
 - `types` — shared data types (`Report`, `Result`, `Level`, etc.)
 - `judge.LLMClient` interface for custom LLM providers
 
+[1.3.1]: https://github.com/agent-ecosystem/skill-validator/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/agent-ecosystem/skill-validator/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/agent-ecosystem/skill-validator/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/agent-ecosystem/skill-validator/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/agent-ecosystem/skill-validator/compare/v1.0.0...v1.1.0
+[#33]: https://github.com/agent-ecosystem/skill-validator/issues/33
+[#34]: https://github.com/agent-ecosystem/skill-validator/pull/34
+[#35]: https://github.com/agent-ecosystem/skill-validator/pull/35
+[#37]: https://github.com/agent-ecosystem/skill-validator/pull/37
 [#26]: https://github.com/agent-ecosystem/skill-validator/issues/26
 [#23]: https://github.com/agent-ecosystem/skill-validator/issues/23
 [#27]: https://github.com/agent-ecosystem/skill-validator/issues/27
