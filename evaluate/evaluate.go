@@ -69,12 +69,22 @@ func resolveCacheDir(opts Options, skillDir string) string {
 // newThrottle returns a function that blocks until the next request is allowed.
 // If rps is 0 or negative, the returned function is a no-op.
 // The caller must call the returned stop function when done.
-func newThrottle(rps int) (wait func(), stop func()) {
+func newThrottle(ctx context.Context, rps int) (wait func(), stop func()) {
 	if rps <= 0 {
 		return func() {}, func() {}
 	}
 	ticker := time.NewTicker(time.Second / time.Duration(rps))
-	return func() { <-ticker.C }, ticker.Stop
+	first := true
+	return func() {
+		if first {
+			first = false
+			return
+		}
+		select {
+		case <-ticker.C:
+		case <-ctx.Done():
+		}
+	}, ticker.Stop
 }
 
 // EvaluateSkill scores a skill directory (SKILL.md and/or reference files).
@@ -89,7 +99,7 @@ func EvaluateSkill(ctx context.Context, dir string, client judge.LLMClient, opts
 		return nil, fmt.Errorf("loading skill: %w", err)
 	}
 
-	wait, stop := newThrottle(opts.RateLimit)
+	wait, stop := newThrottle(ctx, opts.RateLimit)
 	defer stop()
 
 	// Score SKILL.md
@@ -252,7 +262,7 @@ func EvaluateSingleFile(ctx context.Context, absPath string, client judge.LLMCli
 		}
 	}
 
-	wait, stop := newThrottle(opts.RateLimit)
+	wait, stop := newThrottle(ctx, opts.RateLimit)
 	defer stop()
 
 	wait()

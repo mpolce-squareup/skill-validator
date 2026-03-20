@@ -533,3 +533,22 @@ func TestEvaluateSkill_RateLimitZeroDisabled(t *testing.T) {
 		t.Errorf("expected fast completion without rate limit, got %v", elapsed)
 	}
 }
+
+func TestNewThrottle_ContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	// 1 req/s = 1s between calls; we should not have to wait that long.
+	wait, stop := newThrottle(ctx, 1)
+	defer stop()
+
+	// First call is free.
+	wait()
+
+	// Cancel the context, then verify the second call returns promptly
+	// instead of blocking for the full 1s tick interval.
+	cancel()
+	start := time.Now()
+	wait()
+	if elapsed := time.Since(start); elapsed > 100*time.Millisecond {
+		t.Errorf("expected wait to return promptly after context cancellation, took %v", elapsed)
+	}
+}
