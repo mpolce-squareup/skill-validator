@@ -20,6 +20,7 @@ var (
 	strictCheck                bool
 	checkAllowExtraFrontmatter bool
 	checkAllowFlatLayouts      bool
+	checkAllowDirs             []string
 )
 
 var checkCmd = &cobra.Command{
@@ -41,6 +42,8 @@ func init() {
 		"suppress warnings for non-spec frontmatter fields")
 	checkCmd.Flags().BoolVar(&checkAllowFlatLayouts, "allow-flat-layouts", false,
 		"allow files at the skill root without warnings and treat them as standard content for token counting")
+	checkCmd.Flags().StringSliceVar(&checkAllowDirs, "allow-dir", nil,
+		"treat these directory names as standard (suppresses unknown-directory warning and excludes from non-standard token count)")
 	rootCmd.AddCommand(checkCmd)
 }
 
@@ -72,6 +75,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			SkipOrphans:           checkSkipOrphans,
 			AllowExtraFrontmatter: checkAllowExtraFrontmatter,
 			AllowFlatLayouts:      checkAllowFlatLayouts,
+			AllowDirs:             checkAllowDirs,
 		},
 	}
 	eopts := exitOpts{strict: strictCheck}

@@ -205,4 +205,22 @@ func TestCheckStructure(t *testing.T) {
 		results := CheckStructure(dir, Options{AllowFlatLayouts: true})
 		requireResultContaining(t, results, types.Warning, "unknown directory: extras/")
 	})
+
+	t.Run("allow-dir suppresses unknown directory warning", func(t *testing.T) {
+		dir := t.TempDir()
+		writeFile(t, dir, "SKILL.md", "content")
+		writeFile(t, dir, "domains/fraud.md", "content")
+		results := CheckStructure(dir, Options{AllowDirs: []string{"domains"}})
+		requireNoResultContaining(t, results, types.Warning, "unknown directory: domains/")
+	})
+
+	t.Run("allow-dir does not suppress other unknown directories", func(t *testing.T) {
+		dir := t.TempDir()
+		writeFile(t, dir, "SKILL.md", "content")
+		writeFile(t, dir, "domains/fraud.md", "content")
+		writeFile(t, dir, "extras/file.md", "content")
+		results := CheckStructure(dir, Options{AllowDirs: []string{"domains"}})
+		requireNoResultContaining(t, results, types.Warning, "unknown directory: domains/")
+		requireResultContaining(t, results, types.Warning, "unknown directory: extras/")
+	})
 }

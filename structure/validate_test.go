@@ -158,6 +158,14 @@ func TestValidate(t *testing.T) {
 		requireNoResultContaining(t, report.Results, types.Error, "doesn't appear to be structured as a skill")
 	})
 
+	t.Run("allowed dir prevents not-structured-as-skill error", func(t *testing.T) {
+		dir := t.TempDir()
+		writeSkill(t, dir, "---\nname: "+dirName(dir)+"\ndescription: desc\n---\n# Body\n")
+		writeFile(t, dir, "domains/huge.md", generateContent(30_000))
+		report := Validate(dir, Options{AllowDirs: []string{"domains"}})
+		requireNoResultContaining(t, report.Results, types.Error, "doesn't appear to be structured as a skill")
+	})
+
 	t.Run("unparseable frontmatter", func(t *testing.T) {
 		dir := t.TempDir()
 		writeSkill(t, dir, "---\n: invalid: yaml: [broken\n---\nBody\n")

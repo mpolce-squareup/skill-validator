@@ -466,3 +466,51 @@ func TestCountAssetFiles(t *testing.T) {
 		}
 	})
 }
+
+func TestCountOtherFiles_AllowDirs(t *testing.T) {
+	t.Run("allowed dir excluded from other counts", func(t *testing.T) {
+		dir := t.TempDir()
+		writeFile(t, dir, "SKILL.md", "content")
+		writeFile(t, dir, "domains/fraud.md", "Fraud domain content.")
+		writeFile(t, dir, "domains/risk.md", "Risk domain content.")
+		_, _, otherCounts := CheckTokens(dir, "body", Options{AllowDirs: []string{"domains"}})
+		if len(otherCounts) != 0 {
+			t.Errorf("expected 0 other counts with allowed dir, got %d", len(otherCounts))
+			for _, c := range otherCounts {
+				t.Logf("  other: %s (%d tokens)", c.File, c.Tokens)
+			}
+		}
+	})
+
+	t.Run("allowed dir case insensitive", func(t *testing.T) {
+		dir := t.TempDir()
+		writeFile(t, dir, "SKILL.md", "content")
+		writeFile(t, dir, "Domains/fraud.md", "Fraud domain content.")
+		_, _, otherCounts := CheckTokens(dir, "body", Options{AllowDirs: []string{"domains"}})
+		if len(otherCounts) != 0 {
+			t.Errorf("expected 0 other counts with case-insensitive allowed dir, got %d", len(otherCounts))
+		}
+	})
+
+	t.Run("non-allowed dir still counted as other", func(t *testing.T) {
+		dir := t.TempDir()
+		writeFile(t, dir, "SKILL.md", "content")
+		writeFile(t, dir, "domains/fraud.md", "Fraud domain content.")
+		writeFile(t, dir, "extras/extra.md", "Extra content.")
+		_, _, otherCounts := CheckTokens(dir, "body", Options{AllowDirs: []string{"domains"}})
+		if len(otherCounts) != 1 {
+			t.Errorf("expected 1 other count, got %d", len(otherCounts))
+		}
+	})
+
+	t.Run("multiple allowed dirs", func(t *testing.T) {
+		dir := t.TempDir()
+		writeFile(t, dir, "SKILL.md", "content")
+		writeFile(t, dir, "domains/fraud.md", "content")
+		writeFile(t, dir, "recipes/recipe.md", "content")
+		_, _, otherCounts := CheckTokens(dir, "body", Options{AllowDirs: []string{"domains", "recipes"}})
+		if len(otherCounts) != 0 {
+			t.Errorf("expected 0 other counts, got %d", len(otherCounts))
+		}
+	})
+}

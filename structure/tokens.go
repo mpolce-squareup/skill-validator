@@ -261,6 +261,11 @@ func countAssetFiles(dir string, enc tokenizer.Codec) []types.TokenCount {
 func countOtherFiles(dir string, enc tokenizer.Codec, opts Options) []types.TokenCount {
 	var counts []types.TokenCount
 
+	allowedDirs := make(map[string]bool, len(opts.AllowDirs))
+	for _, d := range opts.AllowDirs {
+		allowedDirs[strings.ToLower(d)] = true
+	}
+
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return counts
@@ -273,7 +278,7 @@ func countOtherFiles(dir string, enc tokenizer.Codec, opts Options) []types.Toke
 		}
 
 		if entry.IsDir() {
-			if standardDirs[strings.ToLower(name)] {
+			if standardDirs[strings.ToLower(name)] || allowedDirs[strings.ToLower(name)] {
 				continue
 			}
 			// Walk files in unknown directory

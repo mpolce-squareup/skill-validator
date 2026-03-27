@@ -61,6 +61,11 @@ func CheckStructure(dir string, opts Options) []types.Result {
 		return results
 	}
 
+	allowedDirs := make(map[string]bool, len(opts.AllowDirs))
+	for _, d := range opts.AllowDirs {
+		allowedDirs[strings.ToLower(d)] = true
+	}
+
 	for _, entry := range entries {
 		name := entry.Name()
 		if strings.HasPrefix(name, ".") {
@@ -72,7 +77,7 @@ func CheckStructure(dir string, opts Options) []types.Result {
 			}
 			continue
 		}
-		if !recognizedDirs[name] {
+		if !recognizedDirs[name] && !allowedDirs[strings.ToLower(name)] {
 			msg := fmt.Sprintf("unknown directory: %s/", name)
 			if subEntries, err := os.ReadDir(filepath.Join(dir, name)); err == nil {
 				fileCount := 0

@@ -14,6 +14,7 @@ type Options struct {
 	SkipOrphans           bool
 	AllowExtraFrontmatter bool
 	AllowFlatLayouts      bool
+	AllowDirs             []string
 }
 
 // ValidateMulti validates each directory and returns an aggregated report.
